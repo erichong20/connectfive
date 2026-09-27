@@ -25,10 +25,13 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -e '.[dev]'
 connectfive                 # two humans
-connectfive --random-white  # play black against a random agent
+connectfive --bot random    # play Black against a random bot
+connectfive --bot random --human-color white  # bot is Black and moves first
 ```
 
-Enter Go coordinates such as `K10` (the letter I is skipped), or `quit`.
+Enter Go coordinates such as `K10` (the letter I is skipped), or `quit`. Use
+`--seed 42` (or any integer) when you want the random bot to replay the same
+sequence of choices.
 
 ## Use as a JAX/PGX environment
 
@@ -64,4 +67,3 @@ pip install -e '.[dev]'
 pytest
 ruff check .
 ```
-

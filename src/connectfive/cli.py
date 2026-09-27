@@ -8,6 +8,7 @@ import jax.numpy as jnp
 from connectfive.env import BOARD_SIZE, ConnectFive, State
 
 COLUMNS = "ABCDEFGHJKLMNOPQRST"
+PLAYER_NAMES = ("Black", "White")
 
 
 def render(state: State) -> str:
@@ -36,10 +37,28 @@ def parse_move(text: str) -> int:
     return row * BOARD_SIZE + COLUMNS.index(move[0])
 
 
+def random_action(state: State, key: jax.Array) -> int:
+    """Choose a legal move uniformly at random."""
+    probabilities = state.legal_action_mask.astype(jnp.float32)
+    probabilities /= probabilities.sum()
+    return int(jax.random.choice(key, state.legal_action_mask.size, p=probabilities))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Play Connect Five on a 19x19 board")
     parser.add_argument(
-        "--random-white", action="store_true", help="play black against a random white agent"
+        "--bot", choices=("random",), help="play against a bot using the selected policy"
+    )
+    parser.add_argument(
+        "--human-color",
+        choices=("black", "white"),
+        default="black",
+        help="your color when playing a bot; White makes the bot move first (default: black)",
+    )
+    parser.add_argument(
+        "--random-white",
+        action="store_true",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument("--seed", type=int, default=0, help="random-agent seed")
     args = parser.parse_args()
@@ -47,16 +66,18 @@ def main() -> None:
     env = ConnectFive()
     key = jax.random.PRNGKey(args.seed)
     state = env.init(key)
+    bot_player = None
+    if args.bot == "random" or args.random_white:
+        bot_player = 0 if args.human_color == "white" and not args.random_white else 1
 
     while not bool(state.terminated):
         print("\n" + render(state))
         player = int(state.current_player)
-        if args.random_white and player == 1:
+        if player == bot_player:
             key, subkey = jax.random.split(key)
-            probabilities = state.legal_action_mask / jnp.sum(state.legal_action_mask)
-            action = int(jax.random.choice(subkey, env.num_actions, p=probabilities))
+            action = random_action(state, subkey)
             row, col = divmod(action, BOARD_SIZE)
-            print(f"White plays {COLUMNS[col]}{row + 1}.")
+            print(f"{PLAYER_NAMES[player]} bot plays {COLUMNS[col]}{row + 1}.")
         else:
             label = "Black (X)" if player == 0 else "White (O)"
             try:
@@ -87,4 +108,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
