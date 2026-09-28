@@ -30,6 +30,7 @@ const STAR_POINTS = new Set([48, 56, 112, 168, 176]);
 type Stone = 0 | 1 | null;
 type Player = 0 | 1;
 type Result = Player | 'draw' | null;
+type BotKind = 'random' | 'tactical';
 
 function coordinate(index: number) {
   const row = Math.floor(index / SIZE) + 1;
@@ -64,6 +65,108 @@ function winningRun(board: Stone[], lastMove: number, player: Player) {
   return [];
 }
 
+function runAndOpenEnds(
+  board: Stone[],
+  index: number,
+  player: Player,
+  dr: number,
+  dc: number,
+) {
+  const row = Math.floor(index / SIZE);
+  const col = index % SIZE;
+  let run = 1;
+  let openEnds = 0;
+
+  for (const sign of [-1, 1]) {
+    for (let distance = 1; distance < SIZE; distance += 1) {
+      const r = row + sign * dr * distance;
+      const c = col + sign * dc * distance;
+      if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) break;
+      const stone = board[r * SIZE + c];
+      if (stone === player) {
+        run += 1;
+        continue;
+      }
+      if (stone === null) openEnds += 1;
+      break;
+    }
+  }
+  return { run, openEnds };
+}
+
+function isExactFiveAfter(board: Stone[], index: number, player: Player) {
+  if (board[index] !== null) return false;
+  return [[0, 1], [1, 0], [1, 1], [1, -1]].some(([dr, dc]) => (
+    runAndOpenEnds(board, index, player, dr, dc).run === 5
+  ));
+}
+
+function patternValue(run: number, openEnds: number) {
+  if (run === 5) return 100_000;
+  if (run === 4) return openEnds === 2 ? 12_000 : openEnds === 1 ? 3_000 : 0;
+  if (run === 3) return openEnds === 2 ? 1_200 : openEnds === 1 ? 250 : 0;
+  if (run === 2) return openEnds === 2 ? 80 : openEnds === 1 ? 15 : 0;
+  return 0;
+}
+
+function nearbyMoves(board: Stone[], open: number[]) {
+  const occupied = board.flatMap((stone, index) => (stone === null ? [] : [index]));
+  if (occupied.length === 0) return [Math.floor(CELLS / 2)];
+  const nearby = open.filter((index) => {
+    const row = Math.floor(index / SIZE);
+    const col = index % SIZE;
+    return occupied.some((stoneIndex) => {
+      const stoneRow = Math.floor(stoneIndex / SIZE);
+      const stoneCol = stoneIndex % SIZE;
+      return Math.max(Math.abs(stoneRow - row), Math.abs(stoneCol - col)) <= 2;
+    });
+  });
+  return nearby.length > 0 ? nearby : open;
+}
+
+function tacticalScore(board: Stone[], index: number, player: Player) {
+  const opponent = (1 - player) as Player;
+  const row = Math.floor(index / SIZE);
+  const col = index % SIZE;
+  let score = 0;
+
+  for (const [dr, dc] of [[0, 1], [1, 0], [1, 1], [1, -1]]) {
+    const own = runAndOpenEnds(board, index, player, dr, dc);
+    const theirs = runAndOpenEnds(board, index, opponent, dr, dc);
+    score += patternValue(own.run, own.openEnds);
+    score += Math.floor(1.1 * patternValue(theirs.run, theirs.openEnds));
+  }
+
+  for (let r = Math.max(0, row - 2); r <= Math.min(SIZE - 1, row + 2); r += 1) {
+    for (let c = Math.max(0, col - 2); c <= Math.min(SIZE - 1, col + 2); c += 1) {
+      if (board[r * SIZE + c] !== null) {
+        score += Math.max(Math.abs(r - row), Math.abs(c - col)) === 1 ? 8 : 2;
+      }
+    }
+  }
+
+  const center = Math.floor(SIZE / 2);
+  return score - Math.abs(row - center) - Math.abs(col - center);
+}
+
+function chooseBotMove(board: Stone[], player: Player, kind: BotKind) {
+  const open = board.flatMap((stone, index) => (stone === null ? [index] : []));
+  if (kind === 'random') return open[Math.floor(Math.random() * open.length)];
+
+  const candidates = nearbyMoves(board, open);
+  const winning = candidates.filter((index) => isExactFiveAfter(board, index, player));
+  if (winning.length > 0) return winning[Math.floor(Math.random() * winning.length)];
+
+  const opponent = (1 - player) as Player;
+  const blocks = candidates.filter((index) => isExactFiveAfter(board, index, opponent));
+  if (blocks.length > 0) return blocks[Math.floor(Math.random() * blocks.length)];
+
+  const scored = candidates.map((index) => ({ index, score: tacticalScore(board, index, player) }));
+  const bestScore = Math.max(...scored.map(({ score }) => score));
+  const best = scored.filter(({ score }) => score === bestScore);
+  return best[Math.floor(Math.random() * best.length)].index;
+}
+
 export default function Home() {
   const [board, setBoard] = useState<Stone[]>(() => Array(CELLS).fill(null));
   const [human, setHuman] = useState<Player>(0);
@@ -71,6 +174,7 @@ export default function Home() {
   const [result, setResult] = useState<Result>(null);
   const [winningCells, setWinningCells] = useState<number[]>([]);
   const [lastMove, setLastMove] = useState<number | null>(null);
+  const [botKind, setBotKind] = useState<BotKind>('tactical');
 
   const moveCount = useMemo(() => board.filter((stone) => stone !== null).length, [board]);
   const bot = (1 - human) as Player;
@@ -97,14 +201,11 @@ export default function Home() {
   useEffect(() => {
     if (result !== null || turn !== bot) return;
     const timer = window.setTimeout(() => {
-      const open = board.flatMap((stone, index) => (stone === null ? [index] : []));
-      if (open.length > 0) {
-        const choice = open[Math.floor(Math.random() * open.length)];
-        playMove(choice, bot);
-      }
+      const choice = chooseBotMove(board, bot, botKind);
+      if (choice !== undefined) playMove(choice, bot);
     }, 420);
     return () => window.clearTimeout(timer);
-  }, [board, bot, playMove, result, turn]);
+  }, [board, bot, botKind, playMove, result, turn]);
 
   const reset = useCallback((nextHuman = human) => {
     setBoard(Array(CELLS).fill(null));
@@ -122,7 +223,7 @@ export default function Home() {
         ? 'You connected five. You win!'
         : 'The bot connected five.'
       : botThinking
-        ? 'Random bot is choosing…'
+        ? `${botKind === 'tactical' ? 'Tactical' : 'Random'} bot is choosing…`
         : turn === human
           ? 'Your move'
           : 'Bot to move';
@@ -236,6 +337,19 @@ export default function Home() {
             </div>
 
             <div className="control-section">
+              <p className="control-label">Opponent</p>
+              <div className="color-picker">
+                <button type="button" className={botKind === 'tactical' ? 'selected' : ''} onClick={() => { setBotKind('tactical'); reset(); }} aria-pressed={botKind === 'tactical'}>
+                  Tactical
+                </button>
+                <button type="button" className={botKind === 'random' ? 'selected' : ''} onClick={() => { setBotKind('random'); reset(); }} aria-pressed={botKind === 'random'}>
+                  Random
+                </button>
+              </div>
+              <p className="hint">Tactical wins, blocks, and builds local threats.</p>
+            </div>
+
+            <div className="control-section">
               <p className="control-label">Play as</p>
               <div className="color-picker">
                 <button type="button" className={human === 0 ? 'selected' : ''} onClick={() => reset(0)} aria-pressed={human === 0}>
@@ -250,7 +364,7 @@ export default function Home() {
 
             <div className="score-row">
               <div><span>Moves</span><strong>{moveCount}</strong></div>
-              <div><span>Opponent</span><strong>Random</strong></div>
+              <div><span>Opponent</span><strong>{botKind === 'tactical' ? 'Tactical' : 'Random'}</strong></div>
             </div>
 
             <Button size="lg" className="h-11 w-full rounded-xl bg-[#2f4f3e] text-[#fffaf0] hover:bg-[#20392d]" onClick={() => reset()}>

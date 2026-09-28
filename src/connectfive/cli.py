@@ -3,8 +3,8 @@
 import argparse
 
 import jax
-import jax.numpy as jnp
 
+from connectfive.agents import RandomAgent, make_agent
 from connectfive.env import BOARD_SIZE, ConnectFive, State
 
 COLUMNS = "ABCDEFGHJKLMNOPQRST"[:BOARD_SIZE]
@@ -38,16 +38,17 @@ def parse_move(text: str) -> int:
 
 
 def random_action(state: State, key: jax.Array) -> int:
-    """Choose a legal move uniformly at random."""
-    probabilities = state.legal_action_mask.astype(jnp.float32)
-    probabilities /= probabilities.sum()
-    return int(jax.random.choice(key, state.legal_action_mask.size, p=probabilities))
+    """Backward-compatible wrapper around the reusable random agent."""
+
+    return RandomAgent().select_action(state, key)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Play standard Gomoku on a 15x15 board")
     parser.add_argument(
-        "--bot", choices=("random",), help="play against a bot using the selected policy"
+        "--bot",
+        choices=("random", "tactical"),
+        help="play against a bot using the selected policy",
     )
     parser.add_argument(
         "--human-color",
@@ -67,17 +68,23 @@ def main() -> None:
     key = jax.random.PRNGKey(args.seed)
     state = env.init(key)
     bot_player = None
-    if args.bot == "random" or args.random_white:
+    bot_agent = None
+    if args.bot or args.random_white:
         bot_player = 0 if args.human_color == "white" and not args.random_white else 1
+        bot_agent = make_agent(args.bot or "random")
 
     while not bool(state.terminated):
         print("\n" + render(state))
         player = int(state.current_player)
         if player == bot_player:
             key, subkey = jax.random.split(key)
-            action = random_action(state, subkey)
+            assert bot_agent is not None
+            action = bot_agent.select_action(state, subkey)
             row, col = divmod(action, BOARD_SIZE)
-            print(f"{PLAYER_NAMES[player]} bot plays {COLUMNS[col]}{row + 1}.")
+            print(
+                f"{PLAYER_NAMES[player]} {bot_agent.name} bot plays "
+                f"{COLUMNS[col]}{row + 1}."
+            )
         else:
             label = "Black (X)" if player == 0 else "White (O)"
             try:

@@ -20,6 +20,11 @@ dev = [
   "pytest>=8",
   "ruff>=0.6",
 ]
+train = [
+  "flax>=0.8",
+  "mctx>=0.0.5",
+  "optax>=0.2",
+]
 
 [project.scripts]
 connectfive = "connectfive.cli:main"
@@ -33,4 +38,3 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
-
