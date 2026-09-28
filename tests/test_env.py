@@ -1,8 +1,12 @@
+import json
+from pathlib import Path
+
 import jax
 import jax.numpy as jnp
 import pytest
 
 from connectfive import BOARD_SIZE, NUM_ACTIONS, ConnectFive
+from connectfive.cli import parse_move
 
 
 @pytest.fixture
@@ -66,3 +70,23 @@ def test_jit_and_vmap(env):
     assert states.observation.shape == (4, BOARD_SIZE, BOARD_SIZE, 2)
     assert states._step_count.tolist() == [1, 1, 1, 1]
 
+
+
+WIN_CASES = json.loads((Path(__file__).parent / "win_cases.json").read_text())
+EXPECTED_REWARDS = {
+    "black": [1.0, -1.0],
+    "white": [-1.0, 1.0],
+    "draw": [0.0, 0.0],
+    "ongoing": [0.0, 0.0],
+}
+
+
+@pytest.mark.parametrize("case", WIN_CASES, ids=[case["name"] for case in WIN_CASES])
+def test_shared_win_cases(env, case):
+    step = jax.jit(env.step)
+    state = env.init(jax.random.PRNGKey(0))
+    for move in case["moves"]:
+        assert not bool(state.terminated), "game ended before the final move"
+        state = step(state, jnp.int32(parse_move(move)))
+    assert bool(state.terminated) == (case["result"] != "ongoing")
+    assert state.rewards.tolist() == EXPECTED_REWARDS[case["result"]]

@@ -15,10 +15,12 @@ so this repository supplies the missing environment without forking PGX.
 - Five **or more** adjacent stones horizontally, vertically, or diagonally win.
 - A full board without a winner is a draw.
 - There are no Renju forbidden-move or capture rules.
+- Playing on an occupied intersection is illegal. Following the PGX convention,
+  an illegal action ends the game immediately and the player who made it loses.
 
 ## Install and play
 
-Python 3.10-3.13 is recommended.
+Requires Python 3.10 or newer. CI runs on Python 3.10 and 3.12.
 
 ```bash
 python -m venv .venv
@@ -29,9 +31,26 @@ connectfive --bot random    # play Black against a random bot
 connectfive --bot random --human-color white  # bot is Black and moves first
 ```
 
-Enter Go coordinates such as `K10` (the letter I is skipped), or `quit`. Use
-`--seed 42` (or any integer) when you want the random bot to replay the same
-sequence of choices.
+`python -m connectfive` works the same way as the `connectfive` command.
+
+The board is printed with row 19 at the top; `X` is Black and `O` is White.
+Enter Go coordinates such as `K10` (columns run A-T and skip the letter I), or
+`quit` to stop. The terminal won't accept a move on an occupied intersection.
+Use `--seed 42` (or any integer) when you want the random bot to replay the
+same sequence of choices; the seed only affects the bot.
+
+## Browser interface
+
+The playable web interface lives in `web/`:
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Open the local URL shown in the terminal. Choose White if you want the random
+bot to make the first move.
 
 ## Use as a JAX/PGX environment
 
