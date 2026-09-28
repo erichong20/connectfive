@@ -34,14 +34,14 @@ def test_initial_state(env):
 @pytest.mark.parametrize(
     "black_moves",
     [
-        [20, 21, 22, 23, 24],
-        [20, 39, 58, 77, 96],
-        [20, 40, 60, 80, 100],
-        [24, 42, 60, 78, 96],
+        [16, 17, 18, 19, 20],
+        [16, 31, 46, 61, 76],
+        [16, 32, 48, 64, 80],
+        [20, 34, 48, 62, 76],
     ],
 )
 def test_five_in_every_direction_wins(env, black_moves):
-    white_moves = [300, 302, 304, 306]
+    white_moves = [200, 202, 204, 206]
     actions = [move for pair in zip(black_moves[:-1], white_moves) for move in pair]
     actions.append(black_moves[-1])
     state = play(env, actions)

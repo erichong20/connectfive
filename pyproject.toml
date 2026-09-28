@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "connectfive-jax"
 version = "0.1.0"
-description = "A JAX-native, PGX-compatible Connect Five environment on a 19x19 board"
+description = "A JAX-native, PGX-compatible standard Gomoku environment on a 15x15 board"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"

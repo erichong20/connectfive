@@ -1,4 +1,4 @@
-"""PGX-compatible freestyle Connect Five on a 19x19 board."""
+"""PGX-compatible standard Gomoku on a 15x15 board."""
 
 from typing import Any
 
@@ -7,7 +7,7 @@ from pgx import core
 from pgx._src.struct import dataclass
 from pgx._src.types import Array, PRNGKey
 
-BOARD_SIZE = 19
+BOARD_SIZE = 15
 NUM_ACTIONS = BOARD_SIZE * BOARD_SIZE
 EMPTY = -1
 
@@ -34,7 +34,7 @@ class State(core.State):
 
 
 class ConnectFive(core.Env):
-    """Freestyle Gomoku with the common PGX environment interface."""
+    """Standard exact-five Gomoku with the common PGX environment interface."""
 
     def _init(self, key: PRNGKey) -> State:
         del key  # The standard starting position is deterministic.
@@ -77,7 +77,7 @@ class ConnectFive(core.Env):
 
     @property
     def version(self) -> str:
-        return "v0"
+        return "v1"
 
     @property
     def num_players(self) -> int:
@@ -90,7 +90,7 @@ def _has_five(board: Array, row: Array, col: Array, player: Array) -> Array:
     for dr, dc in directions:
         run = 1 + _ray_length(board, row, col, player, dr, dc)
         run += _ray_length(board, row, col, player, -dr, -dc)
-        wins.append(run >= 5)
+        wins.append(run == 5)
     return jnp.any(jnp.stack(wins))
 
 
@@ -99,7 +99,7 @@ def _ray_length(
 ) -> Array:
     count = jnp.int32(0)
     contiguous = jnp.bool_(True)
-    for distance in range(1, 5):
+    for distance in range(1, BOARD_SIZE):
         r = row + dr * distance
         c = col + dc * distance
         in_bounds = (0 <= r) & (r < BOARD_SIZE) & (0 <= c) & (c < BOARD_SIZE)

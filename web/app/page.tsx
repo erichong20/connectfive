@@ -22,10 +22,10 @@ declare global {
   }
 }
 
-const SIZE = 19;
+const SIZE = 15;
 const CELLS = SIZE * SIZE;
-const COLUMNS = 'ABCDEFGHJKLMNOPQRST';
-const STAR_POINTS = new Set([60, 66, 72, 174, 180, 186, 288, 294, 300]);
+const COLUMNS = 'ABCDEFGHJKLMNOP';
+const STAR_POINTS = new Set([48, 56, 112, 168, 176]);
 
 type Stone = 0 | 1 | null;
 type Player = 0 | 1;
@@ -37,8 +37,8 @@ function coordinate(index: number) {
 }
 
 function coordinateIndex(value: string) {
-  const match = /^([A-HJ-T])(1[0-9]|[1-9])$/i.exec(value.trim());
-  if (!match) throw new Error('Use a Go coordinate from A1 through T19, skipping I.');
+  const match = /^([A-HJ-P])(1[0-5]|[1-9])$/i.exec(value.trim());
+  if (!match) throw new Error('Use a Go coordinate from A1 through P15, skipping I.');
   return (Number(match[2]) - 1) * SIZE + COLUMNS.indexOf(match[1].toUpperCase());
 }
 
@@ -50,7 +50,7 @@ function winningRun(board: Stone[], lastMove: number, player: Player) {
   for (const [dr, dc] of directions) {
     const run = [lastMove];
     for (const sign of [-1, 1]) {
-      for (let distance = 1; distance < 5; distance += 1) {
+      for (let distance = 1; distance < SIZE; distance += 1) {
         const r = row + dr * distance * sign;
         const c = col + dc * distance * sign;
         if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) break;
@@ -59,7 +59,7 @@ function winningRun(board: Stone[], lastMove: number, player: Player) {
         run.push(index);
       }
     }
-    if (run.length >= 5) return run;
+    if (run.length === 5) return run;
   }
   return [];
 }
@@ -84,7 +84,7 @@ export default function Home() {
 
     setBoard(nextBoard);
     setLastMove(index);
-    if (run.length >= 5) {
+    if (run.length === 5) {
       setWinningCells(run);
       setResult(player);
     } else if (nextBoard.every((stone) => stone !== null)) {
@@ -192,7 +192,7 @@ export default function Home() {
           <div>
             <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a6240]">
               <span className="inline-block size-2 rounded-full bg-[#d2613c]" />
-              19 × 19 Gomoku
+              15 × 15 Gomoku
             </div>
             <h1 className="font-heading text-2xl font-semibold tracking-[-0.04em] text-[#211a15] sm:text-3xl">Connect Five</h1>
           </div>
@@ -203,7 +203,7 @@ export default function Home() {
 
         <section className="game-shell">
           <div className="board-panel">
-            <div className="board-wrap" aria-label="19 by 19 Connect Five board">
+            <div className="board-wrap" aria-label="15 by 15 Gomoku board">
               <div className="board" aria-label="Game board">
                 {board.map((stone, index) => {
                   const isHumanTurn = turn === human && result === null && !botThinking;
@@ -226,7 +226,7 @@ export default function Home() {
                 })}
               </div>
             </div>
-            <div className="coordinate-note"><span>A</span><span>19 × 19</span><span>T</span></div>
+            <div className="coordinate-note"><span>A</span><span>15 × 15</span><span>P</span></div>
           </div>
 
           <aside className="control-panel">
@@ -259,12 +259,12 @@ export default function Home() {
 
             <div className="rules-note">
               <CircleHelp className="mt-0.5 size-4 shrink-0" />
-              <p>Place a stone on any open intersection. First to connect five or more in any direction wins.</p>
+              <p>Place a stone on any open intersection. Exactly five in any direction wins; overlines do not.</p>
             </div>
           </aside>
         </section>
 
-        <footer>Freestyle Gomoku · Black moves first · No forbidden moves</footer>
+        <footer>Standard Gomoku · Black moves first · Exact five wins</footer>
       </div>
     </main>
   );

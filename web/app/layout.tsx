@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'Connect Five — Play Gomoku',
-  description: 'Play Connect Five against a random bot on a classic 19×19 board.',
+  description: 'Play standard exact-five Gomoku against a random bot on a 15×15 board.',
   icons: { icon: '/favicon.svg' },
 };
 

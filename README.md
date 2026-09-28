@@ -1,7 +1,6 @@
 # Connect Five in JAX
 
-A small, JAX-native implementation of freestyle Connect Five (Gomoku) on the
-standard 19x19 Go board. The environment follows the
+A small, JAX-native implementation of standard Gomoku on a 15x15 board. The environment follows the
 [PGX](https://github.com/sotetsuk/pgx) API and works with `jax.jit` and
 `jax.vmap`.
 
@@ -11,8 +10,9 @@ so this repository supplies the missing environment without forking PGX.
 ## Rules
 
 - Black (player 0) moves first; players alternate placing one stone.
-- An action is a row-major board index: `row * 19 + column`.
-- Five **or more** adjacent stones horizontally, vertically, or diagonally win.
+- An action is a row-major board index: `row * 15 + column`.
+- Exactly five adjacent stones horizontally, vertically, or diagonally win.
+- Overlines (six or more adjacent stones) are legal but do not win.
 - A full board without a winner is a draw.
 - There are no Renju forbidden-move or capture rules.
 - Playing on an occupied intersection is illegal. Following the PGX convention,
@@ -33,8 +33,8 @@ connectfive --bot random --human-color white  # bot is Black and moves first
 
 `python -m connectfive` works the same way as the `connectfive` command.
 
-The board is printed with row 19 at the top; `X` is Black and `O` is White.
-Enter Go coordinates such as `K10` (columns run A-T and skip the letter I), or
+The board is printed with row 15 at the top; `X` is Black and `O` is White.
+Enter Go coordinates such as `K10` (columns run A-P and skip the letter I), or
 `quit` to stop. The terminal won't accept a move on an occupied intersection.
 Use `--seed 42` (or any integer) when you want the random bot to replay the
 same sequence of choices; the seed only affects the bot.
@@ -60,10 +60,10 @@ from connectfive import ConnectFive
 
 env = ConnectFive()
 state = env.init(jax.random.PRNGKey(0))
-state = jax.jit(env.step)(state, 9 * 19 + 9)
+state = jax.jit(env.step)(state, 7 * 15 + 7)
 
-print(state.observation.shape)   # (19, 19, 2)
-print(state.legal_action_mask.shape)  # (361,)
+print(state.observation.shape)   # (15, 15, 2)
+print(state.legal_action_mask.shape)  # (225,)
 ```
 
 The two observation planes are the stones belonging to the observing player
@@ -75,7 +75,7 @@ Batching follows the usual PGX pattern:
 ```python
 keys = jax.random.split(jax.random.PRNGKey(0), 256)
 states = jax.jit(jax.vmap(env.init))(keys)
-actions = jax.numpy.full(256, 180, dtype=jax.numpy.int32)
+actions = jax.numpy.full(256, 112, dtype=jax.numpy.int32)
 states = jax.jit(jax.vmap(env.step))(states, actions)
 ```
 

@@ -7,7 +7,7 @@ import jax.numpy as jnp
 
 from connectfive.env import BOARD_SIZE, ConnectFive, State
 
-COLUMNS = "ABCDEFGHJKLMNOPQRST"
+COLUMNS = "ABCDEFGHJKLMNOPQRST"[:BOARD_SIZE]
 PLAYER_NAMES = ("Black", "White")
 
 
@@ -31,9 +31,9 @@ def parse_move(text: str) -> int:
     try:
         row = int(move[1:]) - 1
     except ValueError as error:
-        raise ValueError("the row must be a number from 1 to 19") from error
+        raise ValueError(f"the row must be a number from 1 to {BOARD_SIZE}") from error
     if not 0 <= row < BOARD_SIZE:
-        raise ValueError("the row must be a number from 1 to 19")
+        raise ValueError(f"the row must be a number from 1 to {BOARD_SIZE}")
     return row * BOARD_SIZE + COLUMNS.index(move[0])
 
 
@@ -45,7 +45,7 @@ def random_action(state: State, key: jax.Array) -> int:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Play Connect Five on a 19x19 board")
+    parser = argparse.ArgumentParser(description="Play standard Gomoku on a 15x15 board")
     parser.add_argument(
         "--bot", choices=("random",), help="play against a bot using the selected policy"
     )
