@@ -24,3 +24,16 @@ standard exact-five rule, an overline is legal but non-winning. Every rule bot,
 search terminal test, training label, and browser implementation must preserve
 that distinction.
 
+## Look ahead by assuming the opponent chooses the worst reply
+
+The one-ply tactical bot ranks only its own candidate moves. The first search
+bot instead scores each move by its worst plausible opponent reply:
+
+`value(move) = immediate_score(move) + min_reply leaf_score(move, reply)`
+
+This is the core minimax idea. The implementation caps the candidate set at 16
+moves and each reply set at 12 moves, so a decision considers at most 192 leaf
+positions. That fixed budget is cheap and predictable, but it can miss a quiet
+move excluded by the heuristic ordering. A later negamax implementation will
+make depth and node budgets explicit and use alpha-beta pruning to search more
+selectively.

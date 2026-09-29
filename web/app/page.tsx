@@ -30,7 +30,10 @@ const STAR_POINTS = new Set([48, 56, 112, 168, 176]);
 type Stone = 0 | 1 | null;
 type Player = 0 | 1;
 type Result = Player | 'draw' | null;
-type BotKind = 'random' | 'tactical';
+type BotKind = 'random' | 'tactical' | 'lookahead';
+
+const ROOT_WIDTH = 16;
+const REPLY_WIDTH = 12;
 
 function coordinate(index: number) {
   const row = Math.floor(index / SIZE) + 1;
@@ -149,6 +152,86 @@ function tacticalScore(board: Stone[], index: number, player: Player) {
   return score - Math.abs(row - center) - Math.abs(col - center);
 }
 
+function orderedCandidates(
+  board: Stone[],
+  open: number[],
+  player: Player,
+  width: number,
+) {
+  const opponent = (1 - player) as Player;
+  const nearby = nearbyMoves(board, open);
+  const wins = nearby.filter((index) => isExactFiveAfter(board, index, player));
+  const winSet = new Set(wins);
+  const blocks = nearby.filter((index) => (
+    !winSet.has(index) && isExactFiveAfter(board, index, opponent)
+  ));
+  const forcing = new Set([...wins, ...blocks]);
+  const remainder = nearby
+    .filter((index) => !forcing.has(index))
+    .sort((a, b) => tacticalScore(board, b, player) - tacticalScore(board, a, player) || a - b);
+  return [...wins, ...blocks, ...remainder].slice(0, width);
+}
+
+function boardAfter(board: Stone[], index: number, player: Player) {
+  const next = [...board];
+  next[index] = player;
+  return next;
+}
+
+function replyCandidates(
+  board: Stone[],
+  open: number[],
+  player: Player,
+  focus: number,
+  baseline: number[],
+) {
+  const opponent = (1 - player) as Player;
+  const nearby = nearbyMoves(board, open);
+  const wins = nearby.filter((index) => isExactFiveAfter(board, index, player));
+  const winSet = new Set(wins);
+  const blocks = nearby.filter((index) => (
+    !winSet.has(index) && isExactFiveAfter(board, index, opponent)
+  ));
+  const focusRow = Math.floor(focus / SIZE);
+  const focusCol = focus % SIZE;
+  const local = nearby.filter((index) => Math.max(
+    Math.abs(Math.floor(index / SIZE) - focusRow),
+    Math.abs(index % SIZE - focusCol),
+  ) <= 2);
+  const legal = new Set(open);
+  const forcing = new Set([...wins, ...blocks]);
+  const pool = [...new Set([
+    ...wins,
+    ...blocks,
+    ...baseline.filter((index) => legal.has(index)),
+    ...local,
+  ])];
+  const remainder = pool
+    .filter((index) => !forcing.has(index))
+    .sort((a, b) => tacticalScore(board, b, player) - tacticalScore(board, a, player) || a - b);
+  return [...wins, ...blocks, ...remainder].slice(0, REPLY_WIDTH);
+}
+
+function replyValue(board: Stone[], reply: number, player: Player) {
+  const opponent = (1 - player) as Player;
+  if (isExactFiveAfter(board, reply, opponent)) return -1_000_000;
+
+  const replyThreat = tacticalScore(board, reply, opponent);
+  const leaf = boardAfter(board, reply, opponent);
+  const open = leaf.flatMap((stone, index) => (stone === null ? [index] : []));
+  if (open.length === 0) return 0;
+  const candidates = nearbyMoves(leaf, open);
+  const ownWins = candidates.filter((index) => isExactFiveAfter(leaf, index, player)).length;
+  if (ownWins > 0) return 500_000 + 50_000 * (ownWins - 1);
+
+  const opponentWins = candidates.filter((index) => (
+    isExactFiveAfter(leaf, index, opponent)
+  )).length;
+  if (opponentWins >= 2) return -500_000;
+
+  return -Math.floor(1.1 * replyThreat) - (opponentWins === 1 ? 100_000 : 0);
+}
+
 function chooseBotMove(board: Stone[], player: Player, kind: BotKind) {
   const open = board.flatMap((stone, index) => (stone === null ? [index] : []));
   if (kind === 'random') return open[Math.floor(Math.random() * open.length)];
@@ -156,6 +239,27 @@ function chooseBotMove(board: Stone[], player: Player, kind: BotKind) {
   const candidates = nearbyMoves(board, open);
   const winning = candidates.filter((index) => isExactFiveAfter(board, index, player));
   if (winning.length > 0) return winning[Math.floor(Math.random() * winning.length)];
+
+  if (kind === 'lookahead') {
+    const roots = orderedCandidates(board, open, player, ROOT_WIDTH);
+    const baselineReplies = orderedCandidates(
+      board, open, (1 - player) as Player, REPLY_WIDTH,
+    );
+    const scored = roots.map((index) => {
+      const afterMove = boardAfter(board, index, player);
+      const replyOpen = open.filter((reply) => reply !== index);
+      const replies = replyCandidates(
+        afterMove, replyOpen, (1 - player) as Player, index, baselineReplies,
+      );
+      const worstReply = replies.length === 0
+        ? 0
+        : Math.min(...replies.map((reply) => replyValue(afterMove, reply, player)));
+      return { index, score: tacticalScore(board, index, player) + worstReply };
+    });
+    const bestScore = Math.max(...scored.map(({ score }) => score));
+    const best = scored.filter(({ score }) => score === bestScore);
+    return best[Math.floor(Math.random() * best.length)].index;
+  }
 
   const opponent = (1 - player) as Player;
   const blocks = candidates.filter((index) => isExactFiveAfter(board, index, opponent));
@@ -174,7 +278,7 @@ export default function Home() {
   const [result, setResult] = useState<Result>(null);
   const [winningCells, setWinningCells] = useState<number[]>([]);
   const [lastMove, setLastMove] = useState<number | null>(null);
-  const [botKind, setBotKind] = useState<BotKind>('tactical');
+  const [botKind, setBotKind] = useState<BotKind>('lookahead');
 
   const moveCount = useMemo(() => board.filter((stone) => stone !== null).length, [board]);
   const bot = (1 - human) as Player;
@@ -223,7 +327,7 @@ export default function Home() {
         ? 'You connected five. You win!'
         : 'The bot connected five.'
       : botThinking
-        ? `${botKind === 'tactical' ? 'Tactical' : 'Random'} bot is choosing…`
+        ? `${botKind === 'lookahead' ? 'Look-ahead' : botKind === 'tactical' ? 'Tactical' : 'Random'} bot is choosing…`
         : turn === human
           ? 'Your move'
           : 'Bot to move';
@@ -338,7 +442,10 @@ export default function Home() {
 
             <div className="control-section">
               <p className="control-label">Opponent</p>
-              <div className="color-picker">
+              <div className="color-picker opponent-picker">
+                <button type="button" className={botKind === 'lookahead' ? 'selected' : ''} onClick={() => { setBotKind('lookahead'); reset(); }} aria-pressed={botKind === 'lookahead'}>
+                  Look-ahead
+                </button>
                 <button type="button" className={botKind === 'tactical' ? 'selected' : ''} onClick={() => { setBotKind('tactical'); reset(); }} aria-pressed={botKind === 'tactical'}>
                   Tactical
                 </button>
@@ -346,7 +453,7 @@ export default function Home() {
                   Random
                 </button>
               </div>
-              <p className="hint">Tactical wins, blocks, and builds local threats.</p>
+              <p className="hint">Look-ahead considers the opponent’s strongest reply before moving.</p>
             </div>
 
             <div className="control-section">
@@ -364,7 +471,7 @@ export default function Home() {
 
             <div className="score-row">
               <div><span>Moves</span><strong>{moveCount}</strong></div>
-              <div><span>Opponent</span><strong>{botKind === 'tactical' ? 'Tactical' : 'Random'}</strong></div>
+              <div><span>Opponent</span><strong>{botKind === 'lookahead' ? 'Look-ahead' : botKind === 'tactical' ? 'Tactical' : 'Random'}</strong></div>
             </div>
 
             <Button size="lg" className="h-11 w-full rounded-xl bg-[#2f4f3e] text-[#fffaf0] hover:bg-[#20392d]" onClick={() => reset()}>

@@ -71,7 +71,6 @@ and small fixtures belong in Git.
 
 ## Current milestone
 
-The current milestone is the evaluation harness plus the tactical rule bot.
-Complete its tests, tactical fixtures, reproducible match report, documentation,
-and human-play interface before beginning shallow search or neural training.
-
+The current milestone is a CPU-budgeted shallow-search bot. Preserve the random
+and one-ply tactical baselines, compare the new bot against both, document
+representative wins and failures, and do not begin neural training yet.

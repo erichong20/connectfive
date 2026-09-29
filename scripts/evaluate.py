@@ -10,8 +10,8 @@ from connectfive.match import evaluate_agents
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("agent", choices=("random", "tactical"))
-    parser.add_argument("opponent", choices=("random", "tactical"))
+    parser.add_argument("agent", choices=("random", "tactical", "lookahead"))
+    parser.add_argument("opponent", choices=("random", "tactical", "lookahead"))
     parser.add_argument("--games", type=int, default=100)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--json", type=Path, help="optionally save the summary as JSON")

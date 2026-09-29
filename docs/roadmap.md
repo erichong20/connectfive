@@ -15,6 +15,8 @@ we learned. Details may change when experiments provide better evidence.
 - [ ] Larger tactical fixture suite
 - [x] Baseline random-vs-random and tactical-vs-random reports
 - [x] Tactical bot in the browser
+- [x] First budgeted two-ply look-ahead bot
+- [ ] Full negamax/alpha-beta search with measurable node budgets
 
 No purchased compute is planned. The current work is CPU-friendly.
 
@@ -40,7 +42,7 @@ estimates.
 
 Gate: at least 1,000 games without illegal moves or replay errors.
 
-## 2. Tactical rule bot — current
+## 2. Tactical rule bot
 
 Build an inspectable one-ply bot that wins an immediate exact five, blocks an
 opponent's immediate win, creates or blocks contiguous threats, prefers moves
@@ -53,11 +55,16 @@ versus aggressive play, and the limits of one-ply reasoning.
 Gate: solve the fixed tactical suite and convincingly beat random play with both
 colors. Document representative failures for the next milestone.
 
-## 3. Pattern evaluator and shallow search
+## 3. Pattern evaluator and shallow search — current
 
 Add candidate generation, a documented pattern evaluator, negamax with
 alpha-beta pruning, move ordering, a transposition table, and strict node/time
 budgets.
+
+The first step is a deliberately small two-ply bot: it keeps the strongest 16
+candidate moves, examines the opponent's strongest 12 replies, and evaluates
+the resulting tactical threats. This makes the minimax idea visible before we
+add recursion, alpha-beta pruning, or a transposition table.
 
 Learning: branching factor, minimax, pruning, horizon effects, evaluation
 functions, and fair time controls.

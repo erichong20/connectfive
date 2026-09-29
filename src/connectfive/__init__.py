@@ -1,6 +1,6 @@
 """JAX-native Connect Five environment."""
 
-from connectfive.agents import Agent, RandomAgent, TacticalAgent, make_agent
+from connectfive.agents import Agent, LookaheadAgent, RandomAgent, TacticalAgent, make_agent
 from connectfive.env import BOARD_SIZE, NUM_ACTIONS, ConnectFive, State
 from connectfive.match import GameRecord, MatchSummary, evaluate_agents, play_game
 
@@ -10,6 +10,7 @@ __all__ = [
     "Agent",
     "ConnectFive",
     "GameRecord",
+    "LookaheadAgent",
     "MatchSummary",
     "RandomAgent",
     "State",
