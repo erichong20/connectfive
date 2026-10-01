@@ -413,6 +413,7 @@ class PatternSearchAgent:
     width: int = 12
     node_budget: int = 4_000
     vcf_depth: int = 8
+    time_limit: float | None = None
     last_search: PatternSearchResult | None = field(default=None, repr=False)
 
     def select_action(self, state, key) -> int:
@@ -426,6 +427,7 @@ class PatternSearchAgent:
             width=self.width,
             node_budget=self.node_budget,
             vcf_depth=self.vcf_depth,
+            time_limit=self.time_limit,
         )
         choices = result.actions
         index = int(jax.random.randint(key, (), 0, len(choices)))

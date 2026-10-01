@@ -218,3 +218,12 @@ teacher corpus already covers the positions the student reaches, a small
 round mostly repeats what the model has seen. Measure the student's teacher
 agreement in its own games (56% here) and compare it with held-out agreement
 (57%) before investing in more rounds.
+
+## A learned policy helps tree search more than it helps move ordering
+
+At 0.2 s per move, the v2 network inside PUCT search beat `pattern` alpha-beta
+63-37 over 100 games. Using the same policy only to rank alpha-beta moves
+scored 7-13. MCTS spreads visits by prior *and* value and can recover from a
+wrong prior. A hard top-k cut in alpha-beta cannot recover from a pruned move.
+Keeping exact tactics (wins, blocks, VCF) outside the network made the hybrid
+safe even when the network is wrong.

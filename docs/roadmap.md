@@ -29,7 +29,9 @@ we learned. Details may change when experiments provide better evidence.
 - [x] Supervised v2: raw policy beats Tactical 75-20-5 over 100 games;
       held-out value MAE 0.61 (constant baseline 0.89)
 - [x] One DAgger round (no measurable gain; documented)
-- [ ] Use the learned policy/value inside search (ordering, leaf value, MCTS priors)
+- [x] Use the learned network inside search: guided MCTS beats `pattern` 63-37
+      over 100 games at 0.2 s/move (`experiments/2026-09-30-guided-search/`)
+- [ ] Self-play with MCTS visit targets (AlphaZero-lite)
 
 No purchased compute is planned. The current work is CPU-friendly.
 
