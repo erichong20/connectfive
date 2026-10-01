@@ -47,7 +47,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Play standard Gomoku on a 15x15 board")
     parser.add_argument(
         "--bot",
-        choices=("random", "tactical", "lookahead"),
+        choices=("random", "tactical", "lookahead", "negamax", "threatsearch", "pattern"),
         help="play against a bot using the selected policy",
     )
     parser.add_argument(

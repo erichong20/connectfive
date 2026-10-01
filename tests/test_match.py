@@ -1,6 +1,13 @@
 import pytest
 
-from connectfive import RandomAgent, TacticalAgent, evaluate_agents, play_game
+from connectfive import (
+    RandomAgent,
+    TacticalAgent,
+    evaluate_agents,
+    evaluate_agents_with_records,
+    generate_opening,
+    play_game,
+)
 
 
 def test_recorded_game_is_reproducible():
@@ -23,3 +30,35 @@ def test_evaluation_alternates_colors_and_accounts_for_every_game():
 def test_evaluation_requires_color_pairs():
     with pytest.raises(ValueError, match="positive even"):
         evaluate_agents(RandomAgent(), RandomAgent(), games=3)
+
+
+def test_evaluation_can_return_replayable_records():
+    summary, records = evaluate_agents_with_records(
+        RandomAgent(), RandomAgent(), games=2, seed=4
+    )
+    assert summary.games == 2
+    assert len(records) == 2
+    assert [record.seed for record in records] == [4, 4]
+    assert all(record.moves for record in records)
+
+
+def test_randomized_openings_are_reproducible_and_paired():
+    opening = generate_opening(seed=12, plies=4)
+    assert opening == generate_opening(seed=12, plies=4)
+    assert len(opening) == len(set(opening)) == 4
+    summary, records = evaluate_agents_with_records(
+        RandomAgent(), RandomAgent(), games=4, seed=12, opening_plies=4
+    )
+    assert summary.games == 4
+    assert records[0].opening_moves == records[1].opening_moves
+    assert records[2].opening_moves == records[3].opening_moves
+    assert records[0].opening_moves != records[2].opening_moves
+
+
+def test_match_summary_reports_color_timing_and_confidence():
+    summary = evaluate_agents(RandomAgent(), RandomAgent(), games=2, seed=5)
+    low, high = summary.score_rate_95_ci
+    assert 0 <= low <= summary.score_rate <= high <= 1
+    assert summary.agent_black_games == summary.agent_white_games == 1
+    assert summary.agent_move_count > 0
+    assert summary.average_agent_move_ms > 0

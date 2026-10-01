@@ -12,11 +12,24 @@ we learned. Details may change when experiments provide better evidence.
 - [x] Shared Python agent interface
 - [x] Deterministic game recorder and paired-color evaluation harness
 - [x] First one-ply tactical bot and unit tests
-- [ ] Larger tactical fixture suite
+- [x] Compact eight-position tactical regression suite
 - [x] Baseline random-vs-random and tactical-vs-random reports
 - [x] Tactical bot in the browser
 - [x] First budgeted two-ply look-ahead bot
-- [ ] Full negamax/alpha-beta search with measurable node budgets
+- [x] First iterative-deepening negamax with alpha-beta and a node budget
+- [x] Paired randomized-opening evaluation and replayable failure capture
+- [x] Fifty-game Negamax-versus-Tactical diagnostic
+- [x] First fork-aware threat-extension experiment
+- [x] Compact residual policy/value network and tiny-batch overfit check
+- [x] Perspective encoding, legal masking, D4 augmentation, and checkpoint tests
+- [x] Generate a game-level supervised dataset with a held-out validation split
+- [x] Add a checkpoint-backed raw network agent and paired evaluation
+- [x] Fast incremental pattern board and threat-aware `pattern` search with VCF
+- [x] Parallel teacher self-play with soft policy and search-value labels
+- [x] Supervised v2: raw policy beats Tactical 75-20-5 over 100 games;
+      held-out value MAE 0.61 (constant baseline 0.89)
+- [x] One DAgger round (no measurable gain; documented)
+- [ ] Use the learned policy/value inside search (ordering, leaf value, MCTS priors)
 
 No purchased compute is planned. The current work is CPU-friendly.
 
@@ -55,7 +68,7 @@ versus aggressive play, and the limits of one-ply reasoning.
 Gate: solve the fixed tactical suite and convincingly beat random play with both
 colors. Document representative failures for the next milestone.
 
-## 3. Pattern evaluator and shallow search — current
+## 3. Pattern evaluator and shallow search — explored, not promoted
 
 Add candidate generation, a documented pattern evaluator, negamax with
 alpha-beta pruning, move ordering, a transposition table, and strict node/time
@@ -66,10 +79,34 @@ candidate moves, examines the opponent's strongest 12 replies, and evaluates
 the resulting tactical threats. This makes the minimax idea visible before we
 add recursion, alpha-beta pruning, or a transposition table.
 
+The second step adds iterative-deepening negamax, alpha-beta pruning, a small
+transposition table, an explicit node budget, search diagnostics, and an
+eight-position JSON tactical suite. It is available as `negamax` in the CLI and
+evaluation scripts, but is not yet the browser default: the first ten-game
+sample is encouraging but too small for promotion, and its per-move latency
+needs a browser-specific budget.
+
+The larger randomized-opening result did not support promotion: 250-node
+Negamax scored 16-21-13 against Tactical over 50 games, for a 45% match score
+and an approximate 95% interval of 32%-59%. It averaged 331 ms per move. The
+shortest saved losses ended in opponent double threats, indicating that fork
+prevention and the leaf evaluator matter more than increasing the node budget.
+
+A first threat-extension implementation followed wins, forced blocks, and fork
+moves for up to two extra plies and added broken-pattern scoring. On the same
+ten paired openings used for the budget comparison, it scored only 3-4-3 while
+averaging 558 ms per move and completed depth 1.56. Every move in its four
+losses exhausted the 100-node budget. Preserve it as a failed experimental
+baseline; do not run a 50-game match or port it to the browser.
+
 Learning: branching factor, minimax, pruning, horizon effects, evaluation
 functions, and fair time controls.
 
 Gate: outperform the tactical bot under equal per-move resources.
+
+The implemented search agents did not pass this gate. A cheaper fork-feature
+redesign remains a possible later experiment, but it is deferred while the
+project tests whether a compact learned representation is more productive.
 
 ## 4. Non-neural MCTS
 
@@ -81,12 +118,43 @@ rollouts struggle in tactical games.
 
 Gate: measure where MCTS beats shallow search and where it does not.
 
-## 5. Optional supervised policy/value warm start
+## 5. Supervised policy/value warm start — current
 
 Generate positions with the strongest classical agents and train a small
 residual network to predict moves and outcomes. Split validation data by whole
-games. This stage is optional if evidence shows direct self-play is simpler and
-equally efficient.
+games.
+
+The first foundation is complete: a 4-block, 32-channel policy/value network
+has 133,100 parameters; uses mover-relative stone planes plus an absolute
+black-to-move plane; masks illegal policy logits; applies all eight square
+symmetries consistently; and round-trips a versioned parameter checkpoint. On
+the eight tactical fixtures, a 200-step CPU sanity run reduced total loss from
+5.8728 to 0.3472 in about 5.2 seconds. The remaining policy loss is the expected
+entropy of fixtures with two equally acceptable target moves, not a failure to
+fit them. The value labels in this plumbing check were synthetic and are not
+evidence of value accuracy or playing strength.
+
+Next, generate complete games from Tactical and Negamax, store provenance and
+final outcomes, split by game, and measure held-out policy accuracy, value error,
+and calibration. This pipeline is now implemented and has produced two local
+runs. Random opening moves are replayed but excluded as imitation labels.
+
+The 32-game v1 corpus contains 3,024 labeled positions. Its network reached
+51.6% training and 39.9% held-out policy accuracy, but held-out value MAE was
+1.12 on targets in `[-1, 1]`. The greedy raw policy went 20-0 against Random and
+0-20 against Tactical with both colors. This meets the basic Random-play gate
+but not the intended teacher-strength or value-generalization standard. Do not
+scale the model yet: first improve data coverage, diagnose value splits, and
+consider richer or softened teacher policy targets.
+
+A review then found that the v1 teacher rarely completed its advertised depth
+and that half the value labels came from board-filling draws. The new
+incremental `pattern` search (VCF, threat pruning, bound-flagged transposition
+table) beats Tactical 40-0 and Negamax 19-1. Its 1,200-game, 38,896-position
+corpus trained supervised v2 with the same 133k-parameter architecture:
+47.5% held-out move accuracy, value MAE 0.61, and 75-20-5 against Tactical over
+100 paired games (v1: 4-94-2). One DAgger round did not measurably help. See
+`experiments/2026-09-30-pattern-teacher-v2/`.
 
 Learning: datasets, leakage, policy loss, value targets, calibration, symmetry
 augmentation, and checkpoint reproduction.

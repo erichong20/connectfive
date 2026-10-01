@@ -135,7 +135,22 @@ def make_agent(name: str) -> Agent:
         return TacticalAgent()
     if name == "lookahead":
         return LookaheadAgent()
-    raise ValueError(f"unknown agent {name!r}; choose random, tactical, or lookahead")
+    if name == "negamax":
+        from connectfive.search import NegamaxAgent
+
+        return NegamaxAgent()
+    if name == "threatsearch":
+        from connectfive.search import ThreatSearchAgent
+
+        return ThreatSearchAgent()
+    if name == "pattern":
+        from connectfive.pattern_search import PatternSearchAgent
+
+        return PatternSearchAgent()
+    raise ValueError(
+        f"unknown agent {name!r}; choose random, tactical, lookahead, negamax, "
+        "threatsearch, or pattern"
+    )
 
 
 def _choose(key: jax.Array, actions) -> int:

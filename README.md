@@ -95,7 +95,35 @@ actions = jax.numpy.full(256, 112, dtype=jax.numpy.int32)
 states = jax.jit(jax.vmap(env.step))(states, actions)
 ```
 
-## Train a bot with self-play
+## Train the compact network
+
+Install the optional training dependencies, then run the fast end-to-end
+overfit check:
+
+```bash
+pip install -e '.[train]'
+python scripts/overfit_network.py
+```
+
+This trains the default 4-block, 32-channel policy/value network on eight fixed
+tactical positions and saves a small parameter checkpoint under the ignored
+`runs/` directory. It is a wiring test, not a claim about playing strength. See
+`docs/neural-network.md` for the architecture and the next training milestone.
+
+The supervised pipeline generates complete classical-agent games, splits them
+by game, trains with real outcomes, and evaluates the raw policy:
+
+```bash
+python scripts/generate_dataset.py --games 32 --out runs/supervised-v1/games.npz
+python scripts/train_supervised.py runs/supervised-v1/games.npz \
+  --steps 1000 --batch-size 128 --out runs/supervised-v1/model
+python scripts/evaluate_network.py runs/supervised-v1/model --opponent random
+```
+
+Generated games, reports, and checkpoints stay under ignored `runs/`. The first
+32-game experiment beat Random but not Tactical, so it is not yet a browser bot.
+
+## AlphaZero self-play prototype
 
 `scripts/train_alphazero.py` is an AlphaZero-style training loop: a policy/value
 ResNet, Gumbel MuZero search from [mctx](https://github.com/google-deepmind/mctx),
@@ -108,9 +136,11 @@ python scripts/train_alphazero.py --tiny               # quick CPU smoke test
 python scripts/train_alphazero.py --out runs/az        # full run; use a GPU
 ```
 
-Every flag in the script's `Config` can be overridden, for example
-`--num-simulations 128 --num-blocks 6`. Checkpoints are written to `--out` at
-each evaluation.
+This script remains a prototype and is not the current recommended training
+path. Before a serious run it must be moved onto the tested network/checkpoint
+path and fixed to preserve complete training state and trajectories across
+iterations. Every flag in its `Config` can be overridden, but do not start a
+long run merely because its loss decreases.
 
 ## Development
 
