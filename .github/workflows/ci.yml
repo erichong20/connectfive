@@ -19,3 +19,22 @@ jobs:
       - run: pip install -e '.[dev,train]'
       - run: ruff check .
       - run: pytest
+
+  web-engine:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit -p .
+      # Generated files must match their sources.
+      - run: npm run build:wasm && git diff --exit-code lib/engine/gemm-wasm.ts
+      - run: npm run build:engine && git diff --exit-code public/engine/bot-worker.js
+      - run: npm run test:engine

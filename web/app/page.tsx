@@ -1,9 +1,10 @@
 'use client';
 
 import { Bot, CircleHelp, Code2, RotateCcw, UserRound } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import type { BotRequest, BotResponse } from '@/lib/engine/bot.worker';
 
 type WebMcpTool = {
   name: string;
@@ -30,7 +31,26 @@ const STAR_POINTS = new Set([48, 56, 112, 168, 176]);
 type Stone = 0 | 1 | null;
 type Player = 0 | 1;
 type Result = Player | 'draw' | null;
-type BotKind = 'random' | 'tactical' | 'lookahead';
+type BotKind = 'neural' | 'lookahead' | 'tactical' | 'random';
+
+const BOT_LABELS: Record<BotKind, string> = {
+  neural: 'Neural',
+  lookahead: 'Look-ahead',
+  tactical: 'Tactical',
+  random: 'Random',
+};
+const BOT_HINTS: Record<BotKind, string> = {
+  neural: 'Strongest: a self-play-trained network guiding a tree search, with exact win and block checks.',
+  lookahead: 'Look-ahead considers the opponent’s strongest reply before moving.',
+  tactical: 'Tactical wins, blocks, and extends its best line one move at a time.',
+  random: 'Random plays any open intersection.',
+};
+// The neural bot searches for up to this long (or this many simulations) per move.
+const NEURAL_MODEL_URL = '/models/az-r2/';
+// Built from lib/engine/bot.worker.ts by scripts/build-engine.mjs.
+const NEURAL_WORKER_URL = '/engine/bot-worker.js';
+const NEURAL_TIME_LIMIT_MS = 1_500;
+const NEURAL_MAX_SIMULATIONS = 600;
 
 const ROOT_WIDTH = 16;
 const REPLY_WIDTH = 12;
@@ -278,7 +298,10 @@ export default function Home() {
   const [result, setResult] = useState<Result>(null);
   const [winningCells, setWinningCells] = useState<number[]>([]);
   const [lastMove, setLastMove] = useState<number | null>(null);
-  const [botKind, setBotKind] = useState<BotKind>('lookahead');
+  const [botKind, setBotKind] = useState<BotKind>('neural');
+  const [botError, setBotError] = useState<string | null>(null);
+  const workerRef = useRef<Worker | null>(null);
+  const requestRef = useRef(0);
 
   const moveCount = useMemo(() => board.filter((stone) => stone !== null).length, [board]);
   const bot = (1 - human) as Player;
@@ -302,13 +325,63 @@ export default function Home() {
     }
   }, [board, result]);
 
+  useEffect(() => () => {
+    workerRef.current?.terminate();
+    workerRef.current = null;
+  }, []);
+
   useEffect(() => {
     if (result !== null || turn !== bot) return;
-    const timer = window.setTimeout(() => {
-      const choice = chooseBotMove(board, bot, botKind);
+    if (botKind !== 'neural') {
+      const timer = window.setTimeout(() => {
+        const choice = chooseBotMove(board, bot, botKind);
+        if (choice !== undefined) playMove(choice, bot);
+      }, 420);
+      return () => window.clearTimeout(timer);
+    }
+
+    // Neural bot: search in a Web Worker; ignore answers to outdated positions.
+    let cancelled = false;
+    const id = ++requestRef.current;
+    const fallback = (message: string) => {
+      setBotError(`Neural bot unavailable (${message}); Look-ahead played instead.`);
+      const choice = chooseBotMove(board, bot, 'lookahead');
       if (choice !== undefined) playMove(choice, bot);
-    }, 420);
-    return () => window.clearTimeout(timer);
+    };
+    let worker = workerRef.current;
+    if (!worker) {
+      try {
+        worker = new Worker(NEURAL_WORKER_URL, { type: 'module' });
+        workerRef.current = worker;
+      } catch (error) {
+        fallback(error instanceof Error ? error.message : 'worker failed to start');
+        return;
+      }
+    }
+    const onMessage = (event: MessageEvent<BotResponse>) => {
+      if (cancelled || event.data.id !== id) return;
+      if ('error' in event.data) fallback(event.data.error);
+      else playMove(event.data.action, bot);
+    };
+    const onError = (event: ErrorEvent) => {
+      if (!cancelled) fallback(event.message || 'worker error');
+    };
+    worker.addEventListener('message', onMessage);
+    worker.addEventListener('error', onError);
+    const request: BotRequest = {
+      id,
+      board: board.map((stone) => (stone === null ? -1 : stone)),
+      player: bot,
+      modelUrl: NEURAL_MODEL_URL,
+      timeLimitMs: NEURAL_TIME_LIMIT_MS,
+      maxSimulations: NEURAL_MAX_SIMULATIONS,
+    };
+    worker.postMessage(request);
+    return () => {
+      cancelled = true;
+      worker?.removeEventListener('message', onMessage);
+      worker?.removeEventListener('error', onError);
+    };
   }, [board, bot, botKind, playMove, result, turn]);
 
   const reset = useCallback((nextHuman = human) => {
@@ -327,7 +400,7 @@ export default function Home() {
         ? 'You connected five. You win!'
         : 'The bot connected five.'
       : botThinking
-        ? `${botKind === 'lookahead' ? 'Look-ahead' : botKind === 'tactical' ? 'Tactical' : 'Random'} bot is choosing…`
+        ? `${BOT_LABELS[botKind]} bot is ${botKind === 'neural' ? 'thinking' : 'choosing'}…`
         : turn === human
           ? 'Your move'
           : 'Bot to move';
@@ -443,17 +516,14 @@ export default function Home() {
             <div className="control-section">
               <p className="control-label">Opponent</p>
               <div className="color-picker opponent-picker">
-                <button type="button" className={botKind === 'lookahead' ? 'selected' : ''} onClick={() => { setBotKind('lookahead'); reset(); }} aria-pressed={botKind === 'lookahead'}>
-                  Look-ahead
-                </button>
-                <button type="button" className={botKind === 'tactical' ? 'selected' : ''} onClick={() => { setBotKind('tactical'); reset(); }} aria-pressed={botKind === 'tactical'}>
-                  Tactical
-                </button>
-                <button type="button" className={botKind === 'random' ? 'selected' : ''} onClick={() => { setBotKind('random'); reset(); }} aria-pressed={botKind === 'random'}>
-                  Random
-                </button>
+                {(['neural', 'lookahead', 'tactical', 'random'] as const).map((kind) => (
+                  <button key={kind} type="button" className={botKind === kind ? 'selected' : ''} onClick={() => { setBotKind(kind); setBotError(null); reset(); }} aria-pressed={botKind === kind}>
+                    {BOT_LABELS[kind]}
+                  </button>
+                ))}
               </div>
-              <p className="hint">Look-ahead considers the opponent’s strongest reply before moving.</p>
+              <p className="hint">{BOT_HINTS[botKind]}</p>
+              {botError && <output className="hint block">{botError}</output>}
             </div>
 
             <div className="control-section">
@@ -471,7 +541,7 @@ export default function Home() {
 
             <div className="score-row">
               <div><span>Moves</span><strong>{moveCount}</strong></div>
-              <div><span>Opponent</span><strong>{botKind === 'lookahead' ? 'Look-ahead' : botKind === 'tactical' ? 'Tactical' : 'Random'}</strong></div>
+              <div><span>Opponent</span><strong>{BOT_LABELS[botKind]}</strong></div>
             </div>
 
             <Button size="lg" className="h-11 w-full rounded-xl bg-[#2f4f3e] text-[#fffaf0] hover:bg-[#20392d]" onClick={() => reset()}>

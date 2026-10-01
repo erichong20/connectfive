@@ -1,0 +1,346 @@
+{
+ "format": "connectfive-web-model",
+ "version": 1,
+ "name": "az-r2",
+ "source_checkpoint": "runs/az-r2/model",
+ "config": {
+  "residual_blocks": 4,
+  "channels": 32,
+  "value_hidden": 64,
+  "input_planes": 4
+ },
+ "tensors": [
+  {
+   "name": "Conv_0/kernel",
+   "shape": [
+    3,
+    3,
+    4,
+    32
+   ],
+   "offset": 0,
+   "length": 1152
+  },
+  {
+   "name": "LayerNorm_0/bias",
+   "shape": [
+    32
+   ],
+   "offset": 1152,
+   "length": 32
+  },
+  {
+   "name": "LayerNorm_0/scale",
+   "shape": [
+    32
+   ],
+   "offset": 1184,
+   "length": 32
+  },
+  {
+   "name": "ResidualBlock_0/Conv_0/kernel",
+   "shape": [
+    3,
+    3,
+    32,
+    32
+   ],
+   "offset": 1216,
+   "length": 9216
+  },
+  {
+   "name": "ResidualBlock_0/Conv_1/kernel",
+   "shape": [
+    3,
+    3,
+    32,
+    32
+   ],
+   "offset": 10432,
+   "length": 9216
+  },
+  {
+   "name": "ResidualBlock_0/LayerNorm_0/bias",
+   "shape": [
+    32
+   ],
+   "offset": 19648,
+   "length": 32
+  },
+  {
+   "name": "ResidualBlock_0/LayerNorm_0/scale",
+   "shape": [
+    32
+   ],
+   "offset": 19680,
+   "length": 32
+  },
+  {
+   "name": "ResidualBlock_0/LayerNorm_1/bias",
+   "shape": [
+    32
+   ],
+   "offset": 19712,
+   "length": 32
+  },
+  {
+   "name": "ResidualBlock_0/LayerNorm_1/scale",
+   "shape": [
+    32
+   ],
+   "offset": 19744,
+   "length": 32
+  },
+  {
+   "name": "ResidualBlock_1/Conv_0/kernel",
+   "shape": [
+    3,
+    3,
+    32,
+    32
+   ],
+   "offset": 19776,
+   "length": 9216
+  },
+  {
+   "name": "ResidualBlock_1/Conv_1/kernel",
+   "shape": [
+    3,
+    3,
+    32,
+    32
+   ],
+   "offset": 28992,
+   "length": 9216
+  },
+  {
+   "name": "ResidualBlock_1/LayerNorm_0/bias",
+   "shape": [
+    32
+   ],
+   "offset": 38208,
+   "length": 32
+  },
+  {
+   "name": "ResidualBlock_1/LayerNorm_0/scale",
+   "shape": [
+    32
+   ],
+   "offset": 38240,
+   "length": 32
+  },
+  {
+   "name": "ResidualBlock_1/LayerNorm_1/bias",
+   "shape": [
+    32
+   ],
+   "offset": 38272,
+   "length": 32
+  },
+  {
+   "name": "ResidualBlock_1/LayerNorm_1/scale",
+   "shape": [
+    32
+   ],
+   "offset": 38304,
+   "length": 32
+  },
+  {
+   "name": "ResidualBlock_2/Conv_0/kernel",
+   "shape": [
+    3,
+    3,
+    32,
+    32
+   ],
+   "offset": 38336,
+   "length": 9216
+  },
+  {
+   "name": "ResidualBlock_2/Conv_1/kernel",
+   "shape": [
+    3,
+    3,
+    32,
+    32
+   ],
+   "offset": 47552,
+   "length": 9216
+  },
+  {
+   "name": "ResidualBlock_2/LayerNorm_0/bias",
+   "shape": [
+    32
+   ],
+   "offset": 56768,
+   "length": 32
+  },
+  {
+   "name": "ResidualBlock_2/LayerNorm_0/scale",
+   "shape": [
+    32
+   ],
+   "offset": 56800,
+   "length": 32
+  },
+  {
+   "name": "ResidualBlock_2/LayerNorm_1/bias",
+   "shape": [
+    32
+   ],
+   "offset": 56832,
+   "length": 32
+  },
+  {
+   "name": "ResidualBlock_2/LayerNorm_1/scale",
+   "shape": [
+    32
+   ],
+   "offset": 56864,
+   "length": 32
+  },
+  {
+   "name": "ResidualBlock_3/Conv_0/kernel",
+   "shape": [
+    3,
+    3,
+    32,
+    32
+   ],
+   "offset": 56896,
+   "length": 9216
+  },
+  {
+   "name": "ResidualBlock_3/Conv_1/kernel",
+   "shape": [
+    3,
+    3,
+    32,
+    32
+   ],
+   "offset": 66112,
+   "length": 9216
+  },
+  {
+   "name": "ResidualBlock_3/LayerNorm_0/bias",
+   "shape": [
+    32
+   ],
+   "offset": 75328,
+   "length": 32
+  },
+  {
+   "name": "ResidualBlock_3/LayerNorm_0/scale",
+   "shape": [
+    32
+   ],
+   "offset": 75360,
+   "length": 32
+  },
+  {
+   "name": "ResidualBlock_3/LayerNorm_1/bias",
+   "shape": [
+    32
+   ],
+   "offset": 75392,
+   "length": 32
+  },
+  {
+   "name": "ResidualBlock_3/LayerNorm_1/scale",
+   "shape": [
+    32
+   ],
+   "offset": 75424,
+   "length": 32
+  },
+  {
+   "name": "policy_conv/kernel",
+   "shape": [
+    1,
+    1,
+    32,
+    2
+   ],
+   "offset": 75456,
+   "length": 64
+  },
+  {
+   "name": "policy_logits/bias",
+   "shape": [
+    1
+   ],
+   "offset": 75520,
+   "length": 1
+  },
+  {
+   "name": "policy_logits/kernel",
+   "shape": [
+    2,
+    1
+   ],
+   "offset": 75521,
+   "length": 2
+  },
+  {
+   "name": "value_conv/kernel",
+   "shape": [
+    1,
+    1,
+    32,
+    4
+   ],
+   "offset": 75523,
+   "length": 128
+  },
+  {
+   "name": "value_hidden/bias",
+   "shape": [
+    64
+   ],
+   "offset": 75651,
+   "length": 64
+  },
+  {
+   "name": "value_hidden/kernel",
+   "shape": [
+    900,
+    64
+   ],
+   "offset": 75715,
+   "length": 57600
+  },
+  {
+   "name": "value_norm/bias",
+   "shape": [
+    4
+   ],
+   "offset": 133315,
+   "length": 4
+  },
+  {
+   "name": "value_norm/scale",
+   "shape": [
+    4
+   ],
+   "offset": 133319,
+   "length": 4
+  },
+  {
+   "name": "value_output/bias",
+   "shape": [
+    1
+   ],
+   "offset": 133323,
+   "length": 1
+  },
+  {
+   "name": "value_output/kernel",
+   "shape": [
+    64,
+    1
+   ],
+   "offset": 133324,
+   "length": 64
+  }
+ ]
+}

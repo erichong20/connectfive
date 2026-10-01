@@ -35,6 +35,8 @@ we learned. Details may change when experiments provide better evidence.
       (45-64%) vs v2, not promoted (`experiments/2026-09-30-alphazero-lite-r1/`)
 - [x] AlphaZero-lite round 2 (400 sims): promoted, 62% (52-71%) vs v2 in
       guided MCTS over 100 games
+- [x] Browser: az-r2 guided MCTS in TypeScript + WASM SIMD, parity-tested
+      against Python (`experiments/2026-10-01-browser-neural-bot/`)
 - [ ] Continue rounds from the az-r2 champion
 
 No purchased compute is planned. The current work is CPU-friendly.

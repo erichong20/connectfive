@@ -117,7 +117,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .status-copy { margin: 3px 0 0; font-size: 16px; font-weight: 650; letter-spacing: -.02em; }
 .control-label { margin-bottom: 9px; }
 .color-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; border: 1px solid #ddceb7; border-radius: 13px; background: #eee2d1; }
-.color-picker.opponent-picker { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.color-picker.opponent-picker { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .color-picker button {
   display: flex; align-items: center; justify-content: center; gap: 8px; height: 38px; border: 0; border-radius: 9px;
   color: #79634e; background: transparent; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer;

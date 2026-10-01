@@ -22,13 +22,20 @@ def main() -> None:
     parser.add_argument("--opening-plies", type=int, default=4)
     parser.add_argument("--json", type=Path)
     parser.add_argument(
+        "--simulations", type=int,
+        help="fixed MCTS simulations per move for the focal agent (overrides time)",
+    )
+    parser.add_argument(
         "--opponent-checkpoint", type=Path,
         help="play guided search with this network instead of --opponent",
     )
     args = parser.parse_args()
 
     evaluator = NetworkEvaluator.from_checkpoint(args.checkpoint)
-    agent = GuidedAgent(evaluator, args.mode, args.time_limit, name=f"guided-{args.mode}")
+    agent = GuidedAgent(
+        evaluator, args.mode, args.time_limit, name=f"guided-{args.mode}",
+        simulations=args.simulations,
+    )
     if args.opponent_checkpoint:
         args.opponent = f"guided-{args.mode}:{args.opponent_checkpoint.parent.name}"
         opponent = GuidedAgent(

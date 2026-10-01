@@ -234,3 +234,14 @@ MCTS skips simulation when the move is forced, so visit counts are all zero
 there. Converting visits to a distribution then silently produced empty
 targets for 28% of positions, which contribute zero policy loss. Check that
 every policy target sums to one before training. A test now checks this.
+
+## Port by parity fixtures, then optimize
+
+The browser bot reimplements four pieces: patterns, tactics, network, and
+MCTS. Python fixtures for each piece make each port testable on its own, so a
+mismatch points to one layer instead of to "the bot plays differently". Plain
+TypeScript convolutions were correct but 20x too slow (37 simulations/s).
+Strength needs at least about 150 simulations per move (42.5% vs `pattern` at
+32 simulations, 61% at 128). A 480-byte WebAssembly SIMD kernel raised
+throughput to about 300-400 simulations/s, and the parity tests showed the
+optimization changed nothing else.

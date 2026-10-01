@@ -260,12 +260,19 @@ class GuidedAgent:
     mode: str = "mcts"
     time_limit: float = 0.2
     name: str = "guided"
+    # When set, MCTS uses a fixed simulation count instead of the time limit.
+    simulations: int | None = None
     last_search: PatternSearchResult | None = field(default=None, repr=False)
 
     def select_action(self, state, key) -> int:
         board = PatternBoard.from_array(np.asarray(state._board), int(state.current_player))
         if self.mode == "mcts":
-            result = GuidedMCTS(board, self.evaluator, time_limit=self.time_limit).run()
+            if self.simulations is None:
+                search = GuidedMCTS(board, self.evaluator, time_limit=self.time_limit)
+            else:
+                search = GuidedMCTS(board, self.evaluator, time_limit=1e9,
+                                    max_simulations=self.simulations)
+            result = search.run()
         else:
             result = GuidedAlphaBeta(
                 board, self.evaluator, value_leaves=self.mode == "alphabeta-value",

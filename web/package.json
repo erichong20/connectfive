@@ -6,11 +6,14 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "vinext dev",
-    "build": "vinext build",
+    "dev": "node scripts/build-engine.mjs && vinext dev",
+    "build": "node scripts/build-engine.mjs && vinext build",
     "start": "wrangler dev --config dist/server/wrangler.json",
     "lint": "oxlint",
-    "format": "oxfmt"
+    "format": "oxfmt",
+    "build:wasm": "node scripts/build-wasm.mjs",
+    "build:engine": "node scripts/build-engine.mjs",
+    "test:engine": "node --test tests/engine.test.mjs"
   },
   "dependencies": {
     "react": "19.2.6",
@@ -49,6 +52,7 @@
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
     "vite": "8.0.13",
+    "wabt": "1.0.39",
     "wrangler": "4.92.0"
   },
   "type": "module"
