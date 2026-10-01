@@ -79,6 +79,8 @@ final-game outcomes (optionally blended with teacher search values) for value
 labels, and record which agent and configuration produced each sample.
 Supervised v2 (`pattern` teacher, 1,200 games) beats Tactical 75-20-5 over 100
 games with held-out value MAE 0.61; see
-`experiments/2026-09-30-pattern-teacher-v2/`. Next, use the learned network
-inside search or test a wider network. Keep the work local and CPU-friendly; do
+`experiments/2026-09-30-pattern-teacher-v2/`. Guided MCTS with the
+AlphaZero-lite round-2 network (`runs/az-r2/model`) is the current champion;
+see `experiments/2026-09-30-alphazero-lite-r1/`. Continue self-play rounds
+with a promotion gate against the current champion. Keep the work local and CPU-friendly; do
 not start a long training run or purchase compute.

@@ -57,3 +57,20 @@ Keep v2 as champion; keep `runs/az-r1/model` as a candidate. Before more
 rounds, consider larger visit budgets (sharper targets), a few hundred more
 games per round, and playing the candidate against the champion during
 generation. Each round costs about 15 minutes of local CPU.
+
+## Round 2 (2026-10-01): promoted
+
+- Self-play: round-1 candidate (`runs/az-r1/model`), **400 simulations/move**,
+  500 games, seeds 80000-80499, otherwise as round 1 (with the forced-move
+  target fix in code). 15,275 positions; Black-White-Draw 410-83-7; 1,574 s.
+- Training: fine-tune az-r1 for 2,000 x 256 updates on round-2 data plus
+  round-1 and teacher-v2 replay; same optimizer and targets; 385 s.
+- Held-out round-2 games: policy accuracy 63.2%, value MAE 0.59 (constant
+  baseline 1.00), decisive-game sign accuracy 78%.
+- **Gate vs v2 (guided MCTS, 0.2 s/move, seeds 6000-6049): 61-37-2, 62.0%,
+  95% CI 52-71%.** The interval excludes 50%, so `runs/az-r2/model` is
+  promoted to champion.
+
+Doubling simulations sharpened the targets, and a second round compounded the
+small round-1 gain. Next rounds should start from az-r2 and gate against it.
+Script: `runs/az-r2/run.sh` (self-play, train, gate).
