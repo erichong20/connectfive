@@ -130,8 +130,14 @@ class GuidedMCTS:
 
     def __init__(self, board: PatternBoard, evaluator: NetworkEvaluator,
                  time_limit: float = 0.2, max_simulations: int = 100_000,
-                 c_puct: float = 1.5, top_k: int = 16, leaf_vcf_depth: int = 4):
+                 c_puct: float = 1.5, top_k: int = 16, leaf_vcf_depth: int = 4,
+                 root_noise: float = 0.0, noise_alpha: float = 0.3,
+                 rng: np.random.Generator | None = None):
         self.board = board
+        # Self-play exploration: mix Dirichlet noise into the root priors.
+        self.root_noise = root_noise
+        self.noise_alpha = noise_alpha
+        self.rng = rng or np.random.default_rng(0)
         self.evaluator = evaluator
         self.time_limit = time_limit
         self.max_simulations = max_simulations
@@ -218,6 +224,10 @@ class GuidedMCTS:
         else:
             root_value = self._expand(root)
             root.visits, root.value_sum = 1, root_value
+            if self.root_noise and root.terminal is None and len(root.children) > 1:
+                noise = self.rng.dirichlet([self.noise_alpha] * len(root.children))
+                for child, eta in zip(root.children.values(), noise):
+                    child.prior = (1 - self.root_noise) * child.prior + self.root_noise * eta
         reason = "mcts"
         if root.terminal is not None or len(root.children) == 1:
             reason = "forced"

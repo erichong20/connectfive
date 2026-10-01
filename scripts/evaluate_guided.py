@@ -21,11 +21,21 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=3000)
     parser.add_argument("--opening-plies", type=int, default=4)
     parser.add_argument("--json", type=Path)
+    parser.add_argument(
+        "--opponent-checkpoint", type=Path,
+        help="play guided search with this network instead of --opponent",
+    )
     args = parser.parse_args()
 
     evaluator = NetworkEvaluator.from_checkpoint(args.checkpoint)
     agent = GuidedAgent(evaluator, args.mode, args.time_limit, name=f"guided-{args.mode}")
-    if args.opponent == "pattern":
+    if args.opponent_checkpoint:
+        args.opponent = f"guided-{args.mode}:{args.opponent_checkpoint.parent.name}"
+        opponent = GuidedAgent(
+            NetworkEvaluator.from_checkpoint(args.opponent_checkpoint), args.mode,
+            args.time_limit, name=args.opponent,
+        )
+    elif args.opponent == "pattern":
         # Same wall-clock budget for the classical baseline.
         opponent = PatternSearchAgent(node_budget=10**9, max_depth=12,
                                       time_limit=args.time_limit)

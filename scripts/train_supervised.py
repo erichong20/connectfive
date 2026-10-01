@@ -16,6 +16,7 @@ from connectfive.network import (
     NetworkConfig,
     PolicyValueNetwork,
     count_parameters,
+    load_checkpoint,
     make_train_step,
     mask_policy_logits,
     save_checkpoint,
@@ -143,6 +144,14 @@ def main() -> None:
         "--extra-train", type=Path, nargs="*", default=[],
         help="additional datasets used only for training (e.g. DAgger rounds)",
     )
+    parser.add_argument(
+        "--init-checkpoint", type=Path,
+        help="fine-tune from these weights (architecture flags are taken from it)",
+    )
+    parser.add_argument(
+        "--validation-dataset", type=Path,
+        help="score this dataset's held-out games too (same split seed and fraction)",
+    )
     args = parser.parse_args()
 
     dataset = load_dataset(args.dataset)
@@ -153,15 +162,22 @@ def main() -> None:
         before = len(dataset)
         dataset = concatenate_datasets(dataset, load_dataset(extra_path))
         train_indices = np.concatenate((train_indices, np.arange(before, len(dataset))))
-    config = NetworkConfig(
-        residual_blocks=args.blocks,
-        channels=args.channels,
-        input_planes=args.input_planes,
-    )
-    planes = config.input_planes
-    model = PolicyValueNetwork(config)
     key = jax.random.PRNGKey(args.seed)
-    params = model.init(key, jnp.asarray(with_input_planes(dataset.features[:1], planes)))
+    if args.init_checkpoint:
+        loaded = load_checkpoint(args.init_checkpoint, key)
+        config, params = loaded.config, loaded.params
+        model = PolicyValueNetwork(config)
+    else:
+        config = NetworkConfig(
+            residual_blocks=args.blocks,
+            channels=args.channels,
+            input_planes=args.input_planes,
+        )
+        model = PolicyValueNetwork(config)
+        params = model.init(
+            key, jnp.asarray(with_input_planes(dataset.features[:1], config.input_planes))
+        )
+    planes = config.input_planes
     schedule = optax.cosine_decay_schedule(args.learning_rate, args.steps, alpha=0.05)
     optimizer = (
         optax.adamw(schedule, weight_decay=args.weight_decay)
@@ -195,6 +211,12 @@ def main() -> None:
 
     train_metrics = evaluate(model, params, dataset, train_indices, planes)
     validation_metrics = evaluate(model, params, dataset, validation_indices, planes)
+    extra_validation = None
+    if args.validation_dataset:
+        other = load_dataset(args.validation_dataset)
+        _, other_validation = split_by_game(other, args.validation_fraction, args.seed)
+        extra_validation = evaluate(model, params, other, other_validation, planes)
+        print(f"extra validation ({args.validation_dataset}): {extra_validation}")
     elapsed = time.perf_counter() - started
     checkpoint_metrics = {
         f"train_{name}": value for name, value in train_metrics.items()
@@ -206,6 +228,8 @@ def main() -> None:
     report = {
         "dataset": str(args.dataset),
         "extra_train": [str(path) for path in args.extra_train],
+        "init_checkpoint": str(args.init_checkpoint) if args.init_checkpoint else None,
+        "extra_validation": extra_validation,
         "seed": args.seed,
         "steps": args.steps,
         "batch_size": args.batch_size,

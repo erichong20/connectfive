@@ -7,12 +7,9 @@ import subprocess
 import time
 from pathlib import Path
 
-import jax
-import jax.numpy as jnp
 import numpy as np
 
-from connectfive.dataset import SupervisedDataset, save_dataset
-from connectfive.match import _ENV, _STEP
+from connectfive.dataset import SupervisedDataset, save_dataset, verify_record
 from connectfive.teacher import (
     TeacherConfig,
     config_dict,
@@ -20,19 +17,6 @@ from connectfive.teacher import (
     generate_teacher_games,
     teacher_games_to_arrays,
 )
-
-
-def verify_with_environment(record) -> None:
-    """Replay a teacher game through the JAX environment and check its result."""
-
-    state = _ENV.init(jax.random.PRNGKey(record.seed))
-    for action in record.moves:
-        if bool(state.terminated) or not bool(state.legal_action_mask[action]):
-            raise ValueError(f"game {record.seed} is illegal under the environment rules")
-        state = _STEP(state, jnp.int32(action))
-    rewards = tuple(float(value) for value in state.rewards)
-    if rewards != record.rewards or not bool(state.terminated):
-        raise ValueError(f"game {record.seed} does not replay to its recorded result")
 
 
 def git_state() -> dict:
@@ -68,7 +52,7 @@ def main() -> None:
     generation_seconds = time.perf_counter() - started
     records = tuple(game_record(game, config) for game in games)
     for record in records:
-        verify_with_environment(record)
+        verify_record(record)
     dataset = SupervisedDataset(**teacher_games_to_arrays(games, config))
     winners = [game.winner for game in games]
     lengths = [len(game.moves) for game in games]

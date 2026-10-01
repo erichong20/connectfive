@@ -111,6 +111,21 @@ def concatenate_datasets(first: SupervisedDataset, second: SupervisedDataset) ->
     return SupervisedDataset(**fields)
 
 
+def verify_record(record: GameRecord) -> None:
+    """Replay a record through the JAX environment and check its final result."""
+
+    env = ConnectFive()
+    step = jax.jit(env.step)
+    state = env.init(jax.random.PRNGKey(record.seed))
+    for action in record.moves:
+        if bool(state.terminated) or not bool(state.legal_action_mask[action]):
+            raise ValueError(f"game {record.seed} is illegal under the environment rules")
+        state = step(state, jnp.int32(action))
+    rewards = tuple(float(value) for value in state.rewards)
+    if rewards != record.rewards or not bool(state.terminated):
+        raise ValueError(f"game {record.seed} does not replay to its recorded result")
+
+
 def split_by_game(
     dataset: SupervisedDataset,
     validation_fraction: float = 0.2,

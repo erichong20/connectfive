@@ -227,3 +227,10 @@ scored 7-13. MCTS spreads visits by prior *and* value and can recover from a
 wrong prior. A hard top-k cut in alpha-beta cannot recover from a pruned move.
 Keeping exact tactics (wins, blocks, VCF) outside the network made the hybrid
 safe even when the network is wrong.
+
+## Forced positions still need a policy target
+
+MCTS skips simulation when the move is forced, so visit counts are all zero
+there. Converting visits to a distribution then silently produced empty
+targets for 28% of positions, which contribute zero policy loss. Check that
+every policy target sums to one before training. A test now checks this.

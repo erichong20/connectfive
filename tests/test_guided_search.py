@@ -35,3 +35,23 @@ def test_guided_mcts_plays_legal_moves_from_the_start(evaluator):
         action = agent.select_action(state, jax.random.PRNGKey(ply))
         assert bool(state.legal_action_mask[action])
         state = env.step(state, action)
+
+
+def test_selfplay_records_visit_targets_and_replays(tmp_path):
+    from connectfive.dataset import SupervisedDataset, verify_record
+    from connectfive.network import save_checkpoint
+    from connectfive.selfplay import SelfPlayConfig, generate_selfplay_games
+    from connectfive.teacher import game_record, teacher_games_to_arrays
+
+    config = NetworkConfig(residual_blocks=1, channels=8, value_hidden=16, input_planes=4)
+    params = PolicyValueNetwork(config).init(
+        jax.random.PRNGKey(0), jnp.zeros((1, BOARD_SIZE, BOARD_SIZE, 4))
+    )
+    save_checkpoint(tmp_path / "model", params, config, step=0)
+    selfplay = SelfPlayConfig(checkpoint=str(tmp_path / "model"), simulations=8)
+    games = generate_selfplay_games([1], selfplay, workers=1)
+    verify_record(game_record(games[0], selfplay))
+    dataset = SupervisedDataset(**teacher_games_to_arrays(games, selfplay))
+    sums = dataset.policy_targets.astype("float32").sum(axis=1)
+    assert abs(sums - 1).max() < 1e-2
+    assert (dataset.legal_action_masks | (dataset.policy_targets == 0)).all()
