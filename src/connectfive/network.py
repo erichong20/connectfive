@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import asdict, dataclass
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -222,7 +223,7 @@ class NetworkAgent:
         return cls(params=loaded.params, config=loaded.config)
 
 
-@jax.jit(static_argnums=0)
+@partial(jax.jit, static_argnums=0)
 def _policy_logits(config: NetworkConfig, params: Any, state: State) -> jax.Array:
     """Compiled masked policy logits for one environment state."""
 
