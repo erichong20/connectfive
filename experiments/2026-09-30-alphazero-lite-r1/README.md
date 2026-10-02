@@ -107,3 +107,33 @@ moved at once (simulations, openings), so neither effect is isolated.
 Next: keep az-r3 as a candidate; run round 4 from az-r3 with the same
 settings so gains can compound as in round 1 to round 2, then gate against
 az-r2. If that also fails, ablate openings vs simulations.
+
+## Round 4 (2026-10-01): not promoted, borderline
+
+- Hypothesis: as in rounds 1 to 2, a second round from the round-3
+  candidate compounds its small gain.
+- Self-play: az-r3, 600 simulations, balance threshold 0.3, 64 attempts,
+  500 games, seeds 100000-100499. 23,784 positions (51.6 plies mean);
+  Black-White-Draw **331-142-27** (66% Black); 2,925 s on 9 workers.
+- Training: fine-tune az-r3 on round-4 data plus round-3, round-2, round-1
+  and teacher-v2 replay; otherwise as round 2; 275 s.
+- Held-out round-4 games: policy accuracy 55.2%, value MAE 0.605 vs constant
+  baseline 0.609, decisive-game sign accuracy 58%.
+- **Gate vs az-r2 (guided MCTS, 0.2 s/move, seeds 8000-8049, 100 paired
+  games): 58-41-1, 58.5%, 95% CI 49-68%.** The interval includes 50%, so
+  az-r2 stays champion. All five 20-game blocks scored 55% or more.
+- Provenance: base commit `0a9a4b4` (clean apart from `.claude/`), script
+  `runs/az-r4/run.sh`. Apple M1 Pro CPU, $0.
+
+Interpretation: the trend is positive (54% then 58.5% against the same
+champion) but not yet significant. The anomaly is the value head: on balanced
+self-play games it no longer beats a constant prediction, so the network is
+learning almost nothing about who is winning from these positions. Outcome
+labels from balanced openings are close to coin flips at the opening, and the
+blend with root search values may be dominating.
+
+Next: before more rounds, diagnose the value head (calibration by ply, outcome
+vs search-value targets, replay weighting of the older lopsided data). A
+cheaper check of the borderline result is a fresh, independent 100-game gate
+for az-r4; pooling it with this block after seeing the result would be
+optional stopping, so it must pass on its own.

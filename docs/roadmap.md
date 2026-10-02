@@ -39,6 +39,8 @@ we learned. Details may change when experiments provide better evidence.
       against Python (`experiments/2026-10-01-browser-neural-bot/`)
 - [x] AlphaZero-lite round 3 (600 sims, balanced openings): 54% (44-63%) vs
       az-r2, not promoted; Black self-play wins fell from 82% to 70%
+- [x] Round 4 (from az-r3, same settings): 58.5% (49-68%) vs az-r2, not
+      promoted; held-out value MAE no better than a constant
 - [ ] Continue rounds from the az-r2 champion
 
 No purchased compute is planned. The current work is CPU-friendly.
