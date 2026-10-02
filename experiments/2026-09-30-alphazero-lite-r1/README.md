@@ -74,3 +74,36 @@ generation. Each round costs about 15 minutes of local CPU.
 Doubling simulations sharpened the targets, and a second round compounded the
 small round-1 gain. Next rounds should start from az-r2 and gate against it.
 Script: `runs/az-r2/run.sh` (self-play, train, gate).
+
+## Round 3 (2026-10-01): not promoted
+
+- Hypothesis: lopsided openings skew value targets (Black won 82% of round-2
+  games); sharper targets (600 sims) plus balanced openings give another gain.
+- Balanced openings (new, `choose_opening` in `src/connectfive/selfplay.py`,
+  test in `tests/test_guided_search.py`): az-r2 rates every random 4-ply
+  opening about +0.61 for Black (300 seeds, quartiles 0.54-0.69). Up to 64
+  candidate openings (seeds `seed*64+k`) are tried; the first with |value|
+  <= 0.3 is used, else the most balanced. Mean opening value drops to ~0.35.
+- Self-play: az-r2, **600 simulations**, balance threshold 0.3, 64 attempts,
+  500 games, seeds 90000-90499. 22,444 positions (48.9 plies mean; round 1:
+  34.7); Black-White-Draw **350-128-22** (70% Black, was 82%); 2,382 s on 9
+  workers, concurrent with a website build.
+- Training: fine-tune az-r2, 2,000 x 256 updates on round-3 data plus round-2,
+  round-1 and teacher-v2 replay; otherwise as round 2; 230 s.
+- Held-out round-3 games: policy accuracy 56.4%, value MAE 0.63 (constant
+  baseline 0.78), decisive-game sign accuracy 69%.
+- **Gate vs az-r2 (guided MCTS, 0.2 s/move, seeds 7000-7049, 100 paired
+  games): 53-45-2, 54.0%, 95% CI 44-63%.** Not promoted; az-r2 stays champion.
+- Provenance: base commit and dirty diff in `runs/az-r3/`; script
+  `runs/az-r3/run.sh`. Apple M1 Pro CPU, $0.
+
+Interpretation: balancing worked as a data fix (more White wins, longer and
+less one-sided games, lower constant baseline), but one round of it did not
+produce a measurable strength gain over the champion. The result is the same
+size as round 1's non-significant 54.5%. Held-out metrics are not comparable
+to round 2's because the validation games themselves changed. Two variables
+moved at once (simulations, openings), so neither effect is isolated.
+
+Next: keep az-r3 as a candidate; run round 4 from az-r3 with the same
+settings so gains can compound as in round 1 to round 2, then gate against
+az-r2. If that also fails, ablate openings vs simulations.

@@ -31,6 +31,9 @@ class SelfPlayConfig:
     opening_plies: int = 4
     sample_plies: int = 8
     c_puct: float = 1.5
+    # Reject random openings the network rates as lopsided (|value| above this).
+    balance_threshold: float | None = None
+    balance_attempts: int = 32
 
     @property
     def name(self) -> str:
@@ -47,6 +50,35 @@ def _init_worker(checkpoint: str) -> None:
     _EVALUATOR = NetworkEvaluator.from_checkpoint(Path(checkpoint))
 
 
+def choose_opening(seed: int, config: SelfPlayConfig, evaluator) -> tuple[int, ...]:
+    """Return a seeded opening, optionally the first one the network calls balanced.
+
+    Black moves first and wins most random openings, so the value targets are
+    skewed. With ``balance_threshold`` set, candidate openings are drawn from
+    seeds ``seed * 64 + attempt`` and the first whose network value (for the
+    side to move) is within the threshold is used; otherwise the most balanced.
+    """
+
+    from connectfive.patterns import ACTION_TO_INDEX, PatternBoard
+
+    if config.balance_threshold is None:
+        return generate_opening(seed, config.opening_plies)
+    if not 1 <= config.balance_attempts <= 64:
+        raise ValueError("balance_attempts must be between 1 and 64")
+    best, best_value = (), float("inf")
+    for attempt in range(config.balance_attempts):
+        opening = generate_opening(seed * 64 + attempt, config.opening_plies)
+        board = PatternBoard()
+        for action in opening:
+            board.play(ACTION_TO_INDEX[action])
+        value = abs(evaluator(board)[1])
+        if value <= config.balance_threshold:
+            return opening
+        if value < best_value:
+            best, best_value = opening, value
+    return best
+
+
 def play_selfplay_game(seed: int, config: SelfPlayConfig) -> TeacherGame:
     from connectfive.guided_search import GuidedMCTS
     from connectfive.patterns import ACTION_TO_INDEX, PatternBoard
@@ -55,7 +87,7 @@ def play_selfplay_game(seed: int, config: SelfPlayConfig) -> TeacherGame:
         _init_worker(config.checkpoint)
     rng = np.random.default_rng(seed)
     board = PatternBoard()
-    opening = generate_opening(seed, config.opening_plies)
+    opening = choose_opening(seed, config, _EVALUATOR)
     for action in opening:
         board.play(ACTION_TO_INDEX[action])
     positions, winner, simulations = [], None, 0

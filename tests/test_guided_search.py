@@ -55,3 +55,21 @@ def test_selfplay_records_visit_targets_and_replays(tmp_path):
     sums = dataset.policy_targets.astype("float32").sum(axis=1)
     assert abs(sums - 1).max() < 1e-2
     assert (dataset.legal_action_masks | (dataset.policy_targets == 0)).all()
+
+
+def test_balanced_opening_is_deterministic_and_respects_threshold():
+    from connectfive.patterns import ACTION_TO_INDEX, PatternBoard
+    from connectfive.selfplay import SelfPlayConfig, choose_opening
+
+    def fake(board):
+        return None, 0.9 if len(board.moves) and board.moves[0] % 2 else 0.1
+
+    loose = SelfPlayConfig(checkpoint="x")
+    strict = SelfPlayConfig(checkpoint="x", balance_threshold=0.2, balance_attempts=64)
+    assert choose_opening(5, loose, fake) == choose_opening(5, loose, fake)
+    opening = choose_opening(5, strict, fake)
+    assert opening == choose_opening(5, strict, fake)
+    board = PatternBoard()
+    for action in opening:
+        board.play(ACTION_TO_INDEX[action])
+    assert fake(board)[1] <= 0.2

@@ -20,10 +20,15 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=70_000)
     parser.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 1))
     parser.add_argument("--simulations", type=int, default=200)
+    parser.add_argument("--balance-threshold", type=float, default=None,
+                        help="reject openings whose |network value| exceeds this")
+    parser.add_argument("--balance-attempts", type=int, default=32)
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
 
-    config = SelfPlayConfig(checkpoint=str(args.checkpoint), simulations=args.simulations)
+    config = SelfPlayConfig(checkpoint=str(args.checkpoint), simulations=args.simulations,
+                            balance_threshold=args.balance_threshold,
+                            balance_attempts=args.balance_attempts)
     seeds = list(range(args.seed, args.seed + args.games))
     started = time.perf_counter()
     games = generate_selfplay_games(seeds, config, workers=args.workers)
