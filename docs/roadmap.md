@@ -41,6 +41,9 @@ we learned. Details may change when experiments provide better evidence.
       az-r2, not promoted; Black self-play wins fell from 82% to 70%
 - [x] Round 4 (from az-r3, same settings): 58.5% (49-68%) vs az-r2, not
       promoted; held-out value MAE no better than a constant
+- [x] Value-head diagnosis: no label or target bug; draws are 25% of
+      positions and distort MAE; the network lags its search at every ply
+      (`experiments/2026-10-01-value-diagnosis/`)
 - [ ] Continue rounds from the az-r2 champion
 
 No purchased compute is planned. The current work is CPU-friendly.
