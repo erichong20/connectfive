@@ -18,6 +18,7 @@ from pathlib import Path
 
 import numpy as np
 
+from connectfive.env import is_dead_draw
 from connectfive.match import generate_opening
 from connectfive.teacher import LabelledPosition, TeacherGame
 
@@ -34,6 +35,10 @@ class SelfPlayConfig:
     # Reject random openings the network rates as lopsided (|value| above this).
     balance_threshold: float | None = None
     balance_attempts: int = 32
+    # Stop a game as a draw once no five can be made (checked from this ply on),
+    # or unconditionally at ``draw_ply_cap`` (unsound; measure misjudged games).
+    adjudicate_draws_from: int | None = None
+    draw_ply_cap: int | None = None
 
     @property
     def name(self) -> str:
@@ -90,8 +95,16 @@ def play_selfplay_game(seed: int, config: SelfPlayConfig) -> TeacherGame:
     opening = choose_opening(seed, config, _EVALUATOR)
     for action in opening:
         board.play(ACTION_TO_INDEX[action])
-    positions, winner, simulations = [], None, 0
+    positions, winner, simulations, adjudicated = [], None, 0, None
     while not board.is_full():
+        if config.draw_ply_cap is not None and len(board.moves) >= config.draw_ply_cap:
+            adjudicated = "ply_cap"
+            break
+        if (config.adjudicate_draws_from is not None
+                and len(board.moves) >= config.adjudicate_draws_from
+                and is_dead_draw(board.to_array())):
+            adjudicated = "dead"
+            break
         ply = len(board.moves)
         search = GuidedMCTS(
             board, _EVALUATOR, time_limit=1e9, max_simulations=config.simulations,
@@ -126,7 +139,8 @@ def play_selfplay_game(seed: int, config: SelfPlayConfig) -> TeacherGame:
         if won:
             winner = mover - 1
             break
-    return TeacherGame(seed, tuple(board.moves), opening, winner, tuple(positions), simulations)
+    return TeacherGame(seed, tuple(board.moves), opening, winner, tuple(positions),
+                       simulations, adjudicated)
 
 
 def _play(args) -> TeacherGame:

@@ -3,6 +3,7 @@
 from typing import Any
 
 import jax.numpy as jnp
+import numpy as np
 from pgx import core
 from pgx._src.struct import dataclass
 from pgx._src.types import Array, PRNGKey
@@ -107,3 +108,29 @@ def _ray_length(
         contiguous = contiguous & in_bounds & stone_matches
         count += contiguous
     return count
+
+
+def is_dead_draw(board: np.ndarray) -> bool:
+    """True when no five-cell line is free of both colours' stones.
+
+    A win needs five contiguous stones of one colour, i.e. a window holding
+    no opponent stone. If every window on the board holds both colours,
+    neither side can ever win and the game is certainly drawn. Treating any
+    single-colour window as live is conservative: it never adjudicates a game
+    that could still be won (overlines included).
+    """
+
+    board = np.asarray(board)
+    black, white = board == 0, board == 1
+    for dr, dc in ((0, 1), (1, 0), (1, 1), (1, -1)):
+        for row in range(BOARD_SIZE):
+            for col in range(BOARD_SIZE):
+                end_r, end_c = row + 4 * dr, col + 4 * dc
+                if not (0 <= end_r < BOARD_SIZE and 0 <= end_c < BOARD_SIZE):
+                    continue
+                cells = [(row + k * dr, col + k * dc) for k in range(5)]
+                has_black = any(black[r, c] for r, c in cells)
+                has_white = any(white[r, c] for r, c in cells)
+                if not (has_black and has_white):
+                    return False
+    return True

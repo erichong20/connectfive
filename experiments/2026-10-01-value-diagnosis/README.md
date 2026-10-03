@@ -80,3 +80,39 @@ ablation is a single training seed and was not gated in play.
 - Because the network lags search at every stage, the next lever is model
   size (Stage 6 plan: 64 channels, 4-6 blocks) with more games per round,
   gated against az-r2 as before.
+
+## Follow-up: learning from draws without letting them dominate
+
+Implemented three options (base commit `ce37056`; tests in `tests/test_env.py`,
+`tests/test_dataset.py`, `tests/test_network.py`, `tests/test_guided_search.py`):
+
+1. **Policy targets from draws keep full weight.** Draw positions still
+   teach move choice, notably defence; only the value loss is reweighted.
+2. **Per-game value weighting** (`--value-weighting game` in
+   `scripts/train_supervised.py`): each position's value loss is weighted by
+   1 / (positions in its game), normalised to mean 1, so every game carries
+   equal total value weight.
+3. **Draw adjudication in self-play** (`scripts/selfplay_round.py`):
+   - `--adjudicate-draws-from N`: stop once `is_dead_draw` (in
+     `src/connectfive/env.py`) proves no five-window is free of both colours.
+     Sound, but round-4 draws only became provably dead at ply 197-224 (7 of
+     27 never did before the board filled), so it saves almost nothing.
+   - `--draw-ply-cap N`: stop unfinished games as draws at ply N. Unsound.
+     In rounds 3-4, 1 of 951 decisive games lasted past ply 150 (max 170)
+     and 11 past ply 120. A cap of 150 would have mislabelled 0.1% of
+     decisive games and removed ~75 plies from each of 27 draws (~8% of
+     round-4 positions).
+   Records carry `adjudicated: "dead" | "ply_cap"`, and `verify_record`
+   checks the claim (a dead board for "dead"; non-terminal, no winner and
+   zero rewards for both).
+
+Check of option 2: retraining round 4 exactly as before but with
+`--value-weighting game` gives decisive sign accuracy 58.2% (blend,
+per-position: 57.9%), with no per-ply bucket moving more than 2 points.
+Like the target ablation, reweighting does not change what the value head
+can learn; its main use is keeping the value target stable as draw share
+varies between rounds. It has not been gated in play.
+
+Decision: use `--draw-ply-cap 150 --value-weighting game` in the next round
+to save compute and stabilise value targets; expect strength gains to come
+from model size and data volume, not from value labels.

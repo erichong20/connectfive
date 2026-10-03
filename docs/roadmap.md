@@ -44,6 +44,9 @@ we learned. Details may change when experiments provide better evidence.
 - [x] Value-head diagnosis: no label or target bug; draws are 25% of
       positions and distort MAE; the network lags its search at every ply
       (`experiments/2026-10-01-value-diagnosis/`)
+- [x] Draw handling: per-game value weighting, dead-draw and ply-cap
+      adjudication in self-play; reweighting alone does not change value
+      accuracy (58.2% vs 57.9%)
 - [ ] Continue rounds from the az-r2 champion
 
 No purchased compute is planned. The current work is CPU-friendly.

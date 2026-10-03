@@ -10,7 +10,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from connectfive.env import NUM_ACTIONS, ConnectFive
+from connectfive.env import NUM_ACTIONS, ConnectFive, is_dead_draw
 from connectfive.match import GameRecord
 from connectfive.network import encode_state
 
@@ -122,6 +122,14 @@ def verify_record(record: GameRecord) -> None:
             raise ValueError(f"game {record.seed} is illegal under the environment rules")
         state = step(state, jnp.int32(action))
     rewards = tuple(float(value) for value in state.rewards)
+    if record.adjudicated is not None:
+        if (bool(state.terminated) or record.winner is not None
+                or record.rewards != (0.0, 0.0)
+                or record.adjudicated not in ("dead", "ply_cap")
+                or (record.adjudicated == "dead"
+                    and not is_dead_draw(np.asarray(state._board)))):
+            raise ValueError(f"game {record.seed} is not a valid adjudicated draw")
+        return
     if rewards != record.rewards or not bool(state.terminated):
         raise ValueError(f"game {record.seed} does not replay to its recorded result")
 

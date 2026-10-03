@@ -23,12 +23,18 @@ def main() -> None:
     parser.add_argument("--balance-threshold", type=float, default=None,
                         help="reject openings whose |network value| exceeds this")
     parser.add_argument("--balance-attempts", type=int, default=32)
+    parser.add_argument("--adjudicate-draws-from", type=int, default=None,
+                        help="stop games as draws once no five is possible, from this ply")
+    parser.add_argument("--draw-ply-cap", type=int, default=None,
+                        help="stop unfinished games as draws at this ply")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
 
     config = SelfPlayConfig(checkpoint=str(args.checkpoint), simulations=args.simulations,
                             balance_threshold=args.balance_threshold,
-                            balance_attempts=args.balance_attempts)
+                            balance_attempts=args.balance_attempts,
+                            adjudicate_draws_from=args.adjudicate_draws_from,
+                            draw_ply_cap=args.draw_ply_cap)
     seeds = list(range(args.seed, args.seed + args.games))
     started = time.perf_counter()
     games = generate_selfplay_games(seeds, config, workers=args.workers)
@@ -41,6 +47,8 @@ def main() -> None:
     summary = {
         "black_wins": winners.count(0), "white_wins": winners.count(1),
         "draws": winners.count(None),
+        "dead_draws": sum(game.adjudicated == "dead" for game in games),
+        "capped_draws": sum(game.adjudicated == "ply_cap" for game in games),
         "mean_length": float(np.mean([len(game.moves) for game in games])),
         "seconds": seconds, "workers": args.workers,
         "simulations": sum(game.elapsed_nodes for game in games),

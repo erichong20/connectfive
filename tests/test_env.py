@@ -90,3 +90,18 @@ def test_shared_win_cases(env, case):
         state = step(state, jnp.int32(parse_move(move)))
     assert bool(state.terminated) == (case["result"] != "ongoing")
     assert state.rewards.tolist() == EXPECTED_REWARDS[case["result"]]
+
+
+def test_dead_draw_needs_every_five_window_blocked():
+    import numpy as np
+
+    from connectfive.env import is_dead_draw
+
+    rows, cols = np.indices((BOARD_SIZE, BOARD_SIZE))
+    dead = ((rows + 2 * cols) % 4 < 2).astype(np.int8)
+    assert is_dead_draw(dead)
+    assert not is_dead_draw(np.full((BOARD_SIZE, BOARD_SIZE), -1))
+    # Emptying one full-colour-free window revives it.
+    live = dead.copy()
+    live[7, 3:8] = -1
+    assert not is_dead_draw(live)

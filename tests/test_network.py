@@ -18,6 +18,7 @@ from connectfive.network import (
     load_checkpoint,
     make_train_step,
     mask_policy_logits,
+    policy_value_loss,
     save_checkpoint,
     transform_features,
     transform_policy,
@@ -152,3 +153,22 @@ def test_four_plane_checkpoint_round_trip(tmp_path: Path):
     agent = NetworkAgent.from_checkpoint(tmp_path / "model", jax.random.PRNGKey(0))
     assert agent.config.input_planes == 4
     assert bool(state.legal_action_mask[agent.select_action(state, jax.random.PRNGKey(0))])
+
+
+def test_value_sample_weights_change_only_the_value_loss():
+    config = NetworkConfig(residual_blocks=1, channels=8, value_hidden=16)
+    model = PolicyValueNetwork(config)
+    features = jnp.zeros((2, BOARD_SIZE, BOARD_SIZE, 3))
+    params = model.init(jax.random.PRNGKey(0), features)
+    legal = jnp.ones((2, NUM_ACTIONS), dtype=bool)
+    policy = jnp.full((2, NUM_ACTIONS), 1 / NUM_ACTIONS)
+    targets = jnp.array([1.0, -1.0])
+    _, plain = policy_value_loss(model, params, features, legal, policy, targets)
+    _, ones = policy_value_loss(model, params, features, legal, policy, targets,
+                                value_sample_weights=jnp.ones(2))
+    _, first = policy_value_loss(model, params, features, legal, policy, targets,
+                                 value_sample_weights=jnp.array([1.0, 0.0]))
+    assert jnp.allclose(plain["value_loss"], ones["value_loss"])
+    assert jnp.allclose(plain["policy_loss"], first["policy_loss"])
+    value = model.apply(params, features)[1][0]
+    assert jnp.allclose(first["value_loss"], (value - 1.0) ** 2)

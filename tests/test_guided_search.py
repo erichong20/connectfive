@@ -73,3 +73,21 @@ def test_balanced_opening_is_deterministic_and_respects_threshold():
     for action in opening:
         board.play(ACTION_TO_INDEX[action])
     assert fake(board)[1] <= 0.2
+
+
+def test_selfplay_draw_ply_cap_records_a_replayable_draw(tmp_path):
+    from connectfive.dataset import verify_record
+    from connectfive.network import save_checkpoint
+    from connectfive.selfplay import SelfPlayConfig, generate_selfplay_games
+    from connectfive.teacher import game_record
+
+    config = NetworkConfig(residual_blocks=1, channels=8, value_hidden=16, input_planes=4)
+    params = PolicyValueNetwork(config).init(
+        jax.random.PRNGKey(0), jnp.zeros((1, BOARD_SIZE, BOARD_SIZE, 4))
+    )
+    save_checkpoint(tmp_path / "model", params, config, step=0)
+    selfplay = SelfPlayConfig(checkpoint=str(tmp_path / "model"), simulations=4, draw_ply_cap=6)
+    game = generate_selfplay_games([3], selfplay, workers=1)[0]
+    assert len(game.moves) == 6 and game.winner is None and game.adjudicated == "ply_cap"
+    assert len(game.positions) == 2
+    verify_record(game_record(game, selfplay))

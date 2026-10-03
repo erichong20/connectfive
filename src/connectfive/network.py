@@ -124,11 +124,17 @@ def policy_value_loss(
     policy_targets: jax.Array,
     value_targets: jax.Array,
     value_weight: float = 1.0,
+    value_sample_weights: jax.Array | None = None,
 ) -> tuple[jax.Array, dict[str, jax.Array]]:
     logits, values = model.apply(params, features)
     logits = mask_policy_logits(logits, legal_action_mask)
     policy_loss = optax.softmax_cross_entropy(logits, policy_targets).mean()
-    value_loss = jnp.square(values - value_targets).mean()
+    squared = jnp.square(values - value_targets)
+    if value_sample_weights is None:
+        value_loss = squared.mean()
+    else:
+        # Weights reshape only the value loss; every position still trains the policy.
+        value_loss = (squared * value_sample_weights).sum() / value_sample_weights.sum()
     total = policy_loss + value_weight * value_loss
     return total, {
         "loss": total,
@@ -152,6 +158,7 @@ def make_train_step(
         legal_action_mask: jax.Array,
         policy_targets: jax.Array,
         value_targets: jax.Array,
+        value_sample_weights: jax.Array | None = None,
     ) -> tuple[Any, Any, dict[str, jax.Array]]:
         def objective(current_params):
             return policy_value_loss(
@@ -162,6 +169,7 @@ def make_train_step(
                 policy_targets,
                 value_targets,
                 value_weight,
+                value_sample_weights,
             )
 
         (_, metrics), gradients = jax.value_and_grad(objective, has_aux=True)(params)

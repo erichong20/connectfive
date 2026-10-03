@@ -65,6 +65,7 @@ class TeacherGame:
     winner: int | None
     positions: tuple[LabelledPosition, ...]
     elapsed_nodes: int
+    adjudicated: str | None = None
 
 
 def play_teacher_game(seed: int, config: TeacherConfig) -> TeacherGame:
@@ -156,6 +157,7 @@ def game_record(game: TeacherGame, config: TeacherConfig) -> GameRecord:
         rewards=rewards,
         winner=game.winner,
         opening_moves=game.opening_moves,
+        adjudicated=game.adjudicated,
     )
 
 

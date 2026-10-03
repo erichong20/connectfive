@@ -70,6 +70,18 @@ def value_targets(dataset, indices, target: str) -> np.ndarray:
     return 0.5 * (outcome + search)
 
 
+def game_value_weights(game_ids: np.ndarray) -> np.ndarray:
+    """Per-position weights giving each game the same total value-loss weight.
+
+    Long games (board-filling draws contribute ~220 positions) would otherwise
+    dominate the value target. Weights average 1, so the loss scale is kept.
+    """
+
+    _, inverse, counts = np.unique(game_ids, return_inverse=True, return_counts=True)
+    weights = 1.0 / counts[inverse]
+    return (weights / weights.mean()).astype(np.float32)
+
+
 def policy_targets(dataset, indices, target: str) -> np.ndarray:
     if target == "soft":
         if dataset.policy_targets is None:
@@ -136,6 +148,10 @@ def main() -> None:
         "--value-target", choices=("outcome", "search", "blend"), default="outcome"
     )
     parser.add_argument("--value-weight", type=float, default=1.0)
+    parser.add_argument(
+        "--value-weighting", choices=("position", "game"), default="position",
+        help="'game' gives every game equal total weight in the value loss",
+    )
     parser.add_argument("--weight-decay", type=float, default=0.0)
     parser.add_argument("--input-planes", type=int, choices=(3, 4), default=3)
     parser.add_argument("--channels", type=int, default=32)
@@ -186,6 +202,9 @@ def main() -> None:
     )
     opt_state = optimizer.init(params)
     train_step = make_train_step(model, optimizer, args.value_weight)
+    value_sample_weights = (
+        game_value_weights(dataset.game_ids) if args.value_weighting == "game" else None
+    )
     rng = np.random.default_rng(args.seed)
     started = time.perf_counter()
 
@@ -205,6 +224,8 @@ def main() -> None:
             legal,
             policies,
             jnp.asarray(value_targets(dataset, batch, args.value_target)),
+            None if value_sample_weights is None
+            else jnp.asarray(value_sample_weights[batch]),
         )
         if step == 1 or step % 100 == 0 or step == args.steps:
             print(f"step {step:4d} | train loss {float(metrics['loss']):.4f}")
@@ -237,6 +258,7 @@ def main() -> None:
         "validation_fraction": args.validation_fraction,
         "policy_target": args.policy_target,
         "value_target": args.value_target,
+        "value_weighting": args.value_weighting,
         "value_weight": args.value_weight,
         "weight_decay": args.weight_decay,
         "config": {

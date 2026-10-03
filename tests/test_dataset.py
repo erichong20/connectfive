@@ -1,8 +1,9 @@
 from pathlib import Path
 
 import numpy as np
+import pytest
 
-from connectfive import RandomAgent, play_game
+from connectfive import BOARD_SIZE, RandomAgent, play_game
 from connectfive.dataset import (
     load_dataset,
     records_to_dataset,
@@ -87,3 +88,42 @@ def test_teacher_games_label_every_position_and_replay(tmp_path: Path):
     loaded = load_dataset(path)
     assert np.array_equal(loaded.policy_targets, dataset.policy_targets)
     assert np.array_equal(loaded.search_values, dataset.search_values)
+
+
+def _dead_draw_moves():
+    import numpy as np
+
+    rows, cols = np.indices((BOARD_SIZE, BOARD_SIZE))
+    colour = ((rows + 2 * cols) % 4 < 2).astype(int).reshape(-1)
+    black = [int(i) for i in np.flatnonzero(colour == 0)]
+    white = [int(i) for i in np.flatnonzero(colour == 1)]
+    pairs = min(len(black), len(white))
+    return tuple(move for pair in zip(black[:pairs], white[:pairs]) for move in pair)
+
+
+def test_adjudicated_draw_record_must_be_dead():
+    import dataclasses
+
+    from connectfive.dataset import verify_record
+    from connectfive.match import GameRecord
+
+    moves = _dead_draw_moves()
+    record = GameRecord("a", "b", 0, moves, (0.0, 0.0), None, adjudicated="dead")
+    verify_record(record)
+    with pytest.raises(ValueError):
+        verify_record(dataclasses.replace(record, moves=moves[:20]))
+    verify_record(dataclasses.replace(record, moves=moves[:20], adjudicated="ply_cap"))
+
+
+def test_game_value_weights_give_games_equal_total():
+    import sys
+
+    import numpy as np
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    from train_supervised import game_value_weights
+
+    ids = np.array([0, 0, 0, 1, 2, 2])
+    weights = game_value_weights(ids)
+    totals = [weights[ids == game].sum() for game in range(3)]
+    assert np.allclose(totals, totals[0]) and np.isclose(weights.mean(), 1.0)

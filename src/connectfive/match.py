@@ -27,6 +27,9 @@ class GameRecord:
     opening_moves: tuple[int, ...] = ()
     move_diagnostics: tuple["MoveDiagnostic", ...] = ()
     illegal_player: int | None = None
+    # Why a game was stopped early as a draw: "dead" (no five can ever be made,
+    # see ``is_dead_draw``) or "ply_cap" (a self-play length limit).
+    adjudicated: str | None = None
 
     def as_dict(self) -> dict:
         return dataclasses.asdict(self)
