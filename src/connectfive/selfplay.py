@@ -11,7 +11,10 @@ can run in parallel on one CPU.
 
 from __future__ import annotations
 
+import dataclasses
+import json
 import os
+from collections.abc import Iterator
 from dataclasses import dataclass
 from multiprocessing import get_context
 from pathlib import Path
@@ -21,6 +24,36 @@ import numpy as np
 from connectfive.env import is_dead_draw
 from connectfive.match import generate_opening
 from connectfive.teacher import LabelledPosition, TeacherGame
+
+
+def game_to_json(game: TeacherGame) -> str:
+    return json.dumps(dataclasses.asdict(game), separators=(",", ":"))
+
+
+def game_from_json(line: str) -> TeacherGame:
+    data = json.loads(line)
+    data["positions"] = tuple(
+        LabelledPosition(**{**position, "policy": tuple(map(tuple, position["policy"]))})
+        for position in data["positions"]
+    )
+    for name in ("moves", "opening_moves"):
+        data[name] = tuple(data[name])
+    return TeacherGame(**data)
+
+
+def load_game_log(path: Path) -> dict[int, TeacherGame]:
+    """Read finished games from a JSONL log, ignoring a torn final line."""
+
+    games = {}
+    if not path.exists():
+        return games
+    for line in path.read_text().splitlines():
+        try:
+            game = game_from_json(line)
+        except (json.JSONDecodeError, TypeError, KeyError):
+            continue
+        games[game.seed] = game
+    return games
 
 
 @dataclass(frozen=True)
@@ -148,10 +181,38 @@ def _play(args) -> TeacherGame:
 
 
 def generate_selfplay_games(seeds: list[int], config: SelfPlayConfig,
-                            workers: int = 1) -> list[TeacherGame]:
+                            workers: int = 1, log: Path | None = None) -> list[TeacherGame]:
+    """Play every seed, in seed order. With ``log``, each finished game is
+    appended to a JSONL file as it completes and games already in the log are
+    reused, so an interrupted run resumes instead of starting over."""
+
+    done = load_game_log(log) if log is not None else {}
+    remaining = [seed for seed in seeds if seed not in done]
+    handle = log.open("a") if log is not None else None
+    if handle is not None and log.stat().st_size and not log.read_bytes().endswith(b"\n"):
+        handle.write("\n")  # never append onto a line torn by an interruption
+    try:
+        for game in iter_selfplay_games(remaining, config, workers):
+            done[game.seed] = game
+            if handle is not None:
+                handle.write(game_to_json(game) + "\n")
+                handle.flush()
+    finally:
+        if handle is not None:
+            handle.close()
+    return [done[seed] for seed in seeds]
+
+
+def iter_selfplay_games(seeds: list[int], config: SelfPlayConfig,
+                        workers: int = 1) -> Iterator[TeacherGame]:
+    """Yield games as they finish (completion order, not seed order)."""
+
     jobs = [(seed, config) for seed in seeds]
+    if not jobs:
+        return
     if workers <= 1:
-        return [_play(job) for job in jobs]
+        yield from (_play(job) for job in jobs)
+        return
     # Spawned workers inherit this before importing JAX: one XLA thread each.
     previous = os.environ.get("XLA_FLAGS")
     os.environ["XLA_FLAGS"] = (
@@ -161,7 +222,7 @@ def generate_selfplay_games(seeds: list[int], config: SelfPlayConfig,
         with get_context("spawn").Pool(
             workers, initializer=_init_worker, initargs=(config.checkpoint,)
         ) as pool:
-            return pool.map(_play, jobs, chunksize=1)
+            yield from pool.imap_unordered(_play, jobs, chunksize=1)
     finally:
         if previous is None:
             os.environ.pop("XLA_FLAGS", None)

@@ -127,3 +127,27 @@ def test_game_value_weights_give_games_equal_total():
     weights = game_value_weights(ids)
     totals = [weights[ids == game].sum() for game in range(3)]
     assert np.allclose(totals, totals[0]) and np.isclose(weights.mean(), 1.0)
+
+
+def test_replay_hold_out_drops_exactly_the_primary_validation_games():
+    import sys
+
+    import numpy as np
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    from train_supervised import replay_indices
+
+    from connectfive.dataset import split_by_game
+
+    class Fake:
+        game_ids = np.repeat(np.arange(20), 3)
+
+        def __len__(self):
+            return len(self.game_ids)
+
+    fake = Fake()
+    assert len(replay_indices(fake, False, 0.1, 0)) == 60
+    train, validation = split_by_game(fake, 0.1, 0)
+    kept = replay_indices(fake, True, 0.1, 0)
+    assert np.array_equal(kept, train)
+    assert not set(fake.game_ids[kept]) & set(fake.game_ids[validation])

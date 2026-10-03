@@ -91,3 +91,23 @@ def test_selfplay_draw_ply_cap_records_a_replayable_draw(tmp_path):
     assert len(game.moves) == 6 and game.winner is None and game.adjudicated == "ply_cap"
     assert len(game.positions) == 2
     verify_record(game_record(game, selfplay))
+
+
+def test_selfplay_log_resumes_without_replaying_finished_games(tmp_path):
+    from connectfive.network import save_checkpoint
+    from connectfive.selfplay import SelfPlayConfig, generate_selfplay_games, load_game_log
+
+    config = NetworkConfig(residual_blocks=1, channels=8, value_hidden=16, input_planes=4)
+    params = PolicyValueNetwork(config).init(
+        jax.random.PRNGKey(0), jnp.zeros((1, BOARD_SIZE, BOARD_SIZE, 4))
+    )
+    save_checkpoint(tmp_path / "model", params, config, step=0)
+    selfplay = SelfPlayConfig(checkpoint=str(tmp_path / "model"), simulations=4, draw_ply_cap=10)
+    log = tmp_path / "games.jsonl"
+    first = generate_selfplay_games([1, 2], selfplay, log=log)
+    with log.open("a") as handle:
+        handle.write('{"torn": ')  # an interrupted write
+    again = generate_selfplay_games([1, 2, 3], selfplay, log=log)
+    assert again[:2] == first
+    assert sorted(load_game_log(log)) == [1, 2, 3]
+    assert len(log.read_text().splitlines()) == 4  # only seed 3 was played again

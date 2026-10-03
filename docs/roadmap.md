@@ -50,6 +50,9 @@ we learned. Details may change when experiments provide better evidence.
 - [x] Round 5, 64-channel network: distilled net 51.5% vs az-r2, after one
       self-play round 54.5% (45-64%), not promoted; value sign accuracy
       62% vs 58% (`experiments/2026-10-03-alphazero-lite-r5-64ch/`)
+- [x] Runner fixes: resumable self-play log, replay hold-out
+      (`--hold-out-extra`), 200-game parallel promotion gate
+      (`scripts/promotion_gate.py`)
 - [ ] Continue rounds from the az-r2 champion
 
 No purchased compute is planned. The current work is CPU-friendly.

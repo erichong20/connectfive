@@ -62,3 +62,18 @@ def test_match_summary_reports_color_timing_and_confidence():
     assert summary.agent_black_games == summary.agent_white_games == 1
     assert summary.agent_move_count > 0
     assert summary.average_agent_move_ms > 0
+
+
+def test_combine_summaries_adds_blocks_and_rejects_mixed_agents():
+    import dataclasses
+
+    from connectfive.match import combine_summaries, evaluate_agents
+
+    first = evaluate_agents(RandomAgent(), RandomAgent(), 4, seed=1).as_dict()
+    second = evaluate_agents(RandomAgent(), RandomAgent(), 4, seed=3).as_dict()
+    total = combine_summaries([first, second])
+    assert total.games == 8
+    assert total.wins + total.losses + total.draws == 8
+    assert total.total_moves == first["total_moves"] + second["total_moves"]
+    with pytest.raises(ValueError):
+        combine_summaries([first, {**second, "opponent": "other"}])

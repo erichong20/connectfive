@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 
 from connectfive.dataset import SupervisedDataset, save_dataset, verify_record
-from connectfive.selfplay import SelfPlayConfig, generate_selfplay_games
+from connectfive.selfplay import SelfPlayConfig, generate_selfplay_games, load_game_log
 from connectfive.teacher import game_record, teacher_games_to_arrays
 
 
@@ -37,7 +37,11 @@ def main() -> None:
                             draw_ply_cap=args.draw_ply_cap)
     seeds = list(range(args.seed, args.seed + args.games))
     started = time.perf_counter()
-    games = generate_selfplay_games(seeds, config, workers=args.workers)
+    # Finished games are logged as they complete; rerunning resumes from the log.
+    log = args.out.with_suffix(".games.jsonl")
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    resumed = len(set(load_game_log(log)) & set(seeds))
+    games = generate_selfplay_games(seeds, config, workers=args.workers, log=log)
     seconds = time.perf_counter() - started
     records = tuple(game_record(game, config) for game in games)
     for record in records:
@@ -50,7 +54,8 @@ def main() -> None:
         "dead_draws": sum(game.adjudicated == "dead" for game in games),
         "capped_draws": sum(game.adjudicated == "ply_cap" for game in games),
         "mean_length": float(np.mean([len(game.moves) for game in games])),
-        "seconds": seconds, "workers": args.workers,
+        # Wall time of this invocation only; ``resumed_games`` came from the log.
+        "seconds": seconds, "workers": args.workers, "resumed_games": resumed,
         "simulations": sum(game.elapsed_nodes for game in games),
     }
     save_dataset(args.out, dataset, records, metadata={

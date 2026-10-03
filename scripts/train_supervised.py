@@ -70,6 +70,19 @@ def value_targets(dataset, indices, target: str) -> np.ndarray:
     return 0.5 * (outcome + search)
 
 
+def replay_indices(extra, hold_out: bool, fraction: float, seed: int) -> np.ndarray:
+    """Training indices of a replay dataset.
+
+    With ``hold_out`` the dataset's own validation games (the split it gets as
+    a primary dataset) are dropped, so games a previous model was validated on
+    never leak into later training.
+    """
+
+    if not hold_out:
+        return np.arange(len(extra))
+    return split_by_game(extra, fraction, seed)[0]
+
+
 def game_value_weights(game_ids: np.ndarray) -> np.ndarray:
     """Per-position weights giving each game the same total value-loss weight.
 
@@ -149,6 +162,10 @@ def main() -> None:
     )
     parser.add_argument("--value-weight", type=float, default=1.0)
     parser.add_argument(
+        "--hold-out-extra", action="store_true",
+        help="also drop each --extra-train dataset's validation games (same split)",
+    )
+    parser.add_argument(
         "--value-weighting", choices=("position", "game"), default="position",
         help="'game' gives every game equal total weight in the value loss",
     )
@@ -176,8 +193,12 @@ def main() -> None:
     )
     for extra_path in args.extra_train:
         before = len(dataset)
-        dataset = concatenate_datasets(dataset, load_dataset(extra_path))
-        train_indices = np.concatenate((train_indices, np.arange(before, len(dataset))))
+        extra = load_dataset(extra_path)
+        extra_train = replay_indices(
+            extra, args.hold_out_extra, args.validation_fraction, args.seed
+        )
+        dataset = concatenate_datasets(dataset, extra)
+        train_indices = np.concatenate((train_indices, before + extra_train))
     key = jax.random.PRNGKey(args.seed)
     if args.init_checkpoint:
         loaded = load_checkpoint(args.init_checkpoint, key)
@@ -259,6 +280,7 @@ def main() -> None:
         "policy_target": args.policy_target,
         "value_target": args.value_target,
         "value_weighting": args.value_weighting,
+        "hold_out_extra": args.hold_out_extra,
         "value_weight": args.value_weight,
         "weight_decay": args.weight_decay,
         "config": {

@@ -118,6 +118,21 @@ class MatchSummary:
         return result
 
 
+def combine_summaries(summaries: list[dict]) -> MatchSummary:
+    """Add up match blocks (``MatchSummary.as_dict`` output) between one pair of agents."""
+
+    if not summaries:
+        raise ValueError("no summaries to combine")
+    names = {(entry["agent"], entry["opponent"]) for entry in summaries}
+    if len(names) != 1:
+        raise ValueError(f"summaries mix different agents: {sorted(names)}")
+    fields = {}
+    for field_ in dataclasses.fields(MatchSummary):
+        values = [entry[field_.name] for entry in summaries]
+        fields[field_.name] = values[0] if field_.name in ("agent", "opponent") else sum(values)
+    return MatchSummary(**fields)
+
+
 @dataclass(frozen=True)
 class MoveDiagnostic:
     player: int

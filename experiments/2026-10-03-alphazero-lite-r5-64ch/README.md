@@ -95,3 +95,28 @@ rounds 3-4, a single round is not enough to clear the 100-game gate, and the
   consider a 200-game gate so smaller gains are measurable.
 - The browser bot would need the larger network's weights (2.7x) and slower
   evaluations; measure its in-browser speed before any promotion ships.
+
+## Follow-up: runner fixes before round 6
+
+- **Resumable self-play.** `scripts/selfplay_round.py` appends each finished
+  game to `<out>.games.jsonl` as it completes (`imap_unordered`) and reuses
+  games already in the log on restart; a torn final line is ignored and never
+  appended onto. The summary records `resumed_games`, and `seconds` covers
+  only the current invocation. A wall-clock stop now loses at most the games
+  in flight.
+- **No replay leakage.** `scripts/train_supervised.py --hold-out-extra`
+  drops each replay dataset's own validation games (the same `split_by_game`
+  split it gets as a primary dataset), so a model's held-out games stay
+  held out in every later round. Off by default to keep earlier commands
+  reproducible; use it from round 6 on.
+- **200-game gate.** `scripts/promotion_gate.py` runs paired-colour blocks of
+  `scripts/evaluate_guided.py` in parallel over one contiguous seed range,
+  combines them (`combine_summaries` in `src/connectfive/match.py`), writes
+  `gate.json`, and reuses finished blocks on restart. It promotes only if the
+  95% interval excludes 50% (`--min-score` turns it into an early-stop
+  check). With 200 games the interval half-width near 55% is about 7 points
+  instead of about 10.
+
+Tests: `tests/test_guided_search.py` (log resume and torn line),
+`tests/test_dataset.py` (replay hold-out), `tests/test_match.py` (combining
+blocks). Smoke runs of both scripts resumed correctly.
