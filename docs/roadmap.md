@@ -47,6 +47,9 @@ we learned. Details may change when experiments provide better evidence.
 - [x] Draw handling: per-game value weighting, dead-draw and ply-cap
       adjudication in self-play; reweighting alone does not change value
       accuracy (58.2% vs 57.9%)
+- [x] Round 5, 64-channel network: distilled net 51.5% vs az-r2, after one
+      self-play round 54.5% (45-64%), not promoted; value sign accuracy
+      62% vs 58% (`experiments/2026-10-03-alphazero-lite-r5-64ch/`)
 - [ ] Continue rounds from the az-r2 champion
 
 No purchased compute is planned. The current work is CPU-friendly.
