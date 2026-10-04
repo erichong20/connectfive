@@ -57,6 +57,20 @@ test('incremental board matches a rebuilt board and Python levels', () => {
   }
 });
 
+test('undo restores levels exactly, including on boards loaded from an array', () => {
+  for (const testCase of fixtures.cases.slice(0, 10)) {
+    const loaded = engine.PatternBoard.fromArray(boardFor(testCase.moves).toArray(), testCase.player);
+    const before = [loaded.levels[1].slice(), loaded.levels[2].slice(), loaded.flags[1].slice(), loaded.flags[2].slice()];
+    const extra = [...loaded.candidates].slice(0, 6);
+    for (const index of extra) loaded.play(index);
+    for (let i = 0; i < extra.length; i += 1) loaded.undo();
+    assert.deepEqual([loaded.levels[1], loaded.levels[2], loaded.flags[1], loaded.flags[2]], before);
+    // Undoing past loaded stones falls back to recomputation.
+    while (loaded.moves.length) loaded.undo();
+    assert.deepEqual(loaded.levels[1], new engine.PatternBoard().levels[1]);
+  }
+});
+
 test('tactics match Python move generation and VCF', () => {
   for (const testCase of fixtures.cases) {
     const board = boardFor(testCase.moves);

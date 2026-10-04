@@ -4,7 +4,7 @@
 
 import type { Network } from './network';
 import { ACTION_TO_INDEX, INDEX_TO_ACTION, PatternBoard } from './patterns';
-import { FORCE_WIN, LOSS, QUIET, Tactics, WIN } from './tactics';
+import { FORCE_WIN, LOSS, QUIET, Tactics, VcfCache, WIN } from './tactics';
 
 class Node {
   visits = 0;
@@ -23,6 +23,8 @@ export type MctsOptions = {
   cPuct?: number;
   topK?: number;
   leafVcfDepth?: number;
+  /** Share VCF results across searches, e.g. across the moves of a game. */
+  vcfCache?: VcfCache;
   now?: () => number;
 };
 
@@ -45,7 +47,7 @@ export function guidedMcts(board: PatternBoard, network: Network, options: MctsO
   const cPuct = options.cPuct ?? 1.5;
   const topK = options.topK ?? 16;
   const leafVcfDepth = options.leafVcfDepth ?? 4;
-  const tactics = new Tactics(board);
+  const tactics = new Tactics(board, options.vcfCache);
   const started = now();
 
   const expand = (node: Node): number => {

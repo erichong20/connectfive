@@ -63,3 +63,18 @@ time) or a smaller strong network is needed before switching.
 Port the exact Python speed-ups to the TypeScript engine, re-measure az-r7's
 simulations at 1.5 s, and repeat this match at the new budgets. Separately,
 consider a 3 s think time for az-r7 as a "stronger" setting.
+
+## Follow-up: Python speed-ups ported to TypeScript
+
+Ported the exact changes from `experiments/2026-10-03-selfplay-speed/`:
+an undo log in `web/lib/engine/patterns.ts` (with recomputation for stones
+loaded by `fromArray`), line-local VCF replies and a shared `VcfCache` in
+`tactics.ts`, used by `mcts.ts` and kept across moves in `bot.worker.ts`.
+Parity still passes (12 tests, including a new undo test on loaded boards).
+
+Effect at 1.5 s, same 12 positions: az-r2 median 820 -> 845 simulations,
+az-r7 median 312 -> 320 (mean 722 -> 770). Small, because in the browser
+engine the network is 95% (az-r2, 2.35 ms per evaluation) to 98% (az-r7,
+6.30 ms) of search time, unlike Python where VCF dominated. The remaining
+levers are network speed (a faster WASM GEMM or WebGPU), parallel search
+across several Web Workers, or a longer think time.

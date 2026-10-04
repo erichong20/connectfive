@@ -25,7 +25,7 @@ for (let action = 0; action < SIZE * SIZE; action += 1) {
 const onBoard = (index: number) => index >= 0 && index < WIDTH * WIDTH && INDEX_TO_ACTION[index] >= 0;
 
 const NEIGHBOURS: number[][] = [];
-const LINE_CELLS: number[][][] = [];
+export const LINE_CELLS: number[][][] = [];
 for (let index = 0; index < WIDTH * WIDTH; index += 1) {
   NEIGHBOURS.push([]);
   LINE_CELLS.push([]);
@@ -211,6 +211,12 @@ export class PatternBoard {
   private hashHigh = 0;
   private hashLow = 0;
   private readonly raw: number[] = Array.from({ length: 2 * PAD }, () => 0);
+  // Undo log: (player * 4 * WIDTH^2 + offset, old level) pairs, and where each
+  // move's entries start (-1 for stones loaded by fromArray, which undo
+  // recomputes). Restoring is exact and much cheaper than recomputing.
+  private readonly changes: number[] = [];
+  private readonly moveStarts: number[] = [];
+  private recording = false;
 
   constructor() {
     for (let action = 0; action < SIZE * SIZE; action += 1) this.cells[ACTION_TO_INDEX[action]] = EMPTY;
@@ -230,6 +236,7 @@ export class PatternBoard {
       result.hashHigh = (result.hashHigh ^ ZOBRIST_HIGH[stone][index]) >>> 0;
       result.hashLow ^= ZOBRIST_LOW[stone][index];
       result.moves.push(action);
+      result.moveStarts.push(-1);
       for (const neighbour of NEIGHBOURS[index]) result.near[neighbour] += 1;
     }
     result.turn = player === 0 ? BLACK : WHITE;
@@ -276,7 +283,10 @@ export class PatternBoard {
       this.near[neighbour] += 1;
       if (this.cells[neighbour] === EMPTY) this.candidates.add(neighbour);
     }
+    this.moveStarts.push(this.changes.length);
+    this.recording = true;
     this.refreshLines(index);
+    this.recording = false;
     this.turn = stone === BLACK ? WHITE : BLACK;
   }
 
@@ -291,7 +301,22 @@ export class PatternBoard {
       if (!this.near[neighbour]) this.candidates.delete(neighbour);
     }
     if (this.near[index]) this.candidates.add(index);
-    this.refreshLines(index);
+    const start = this.moveStarts.pop() as number;
+    if (start < 0) {
+      this.refreshLines(index);
+    } else {
+      // The undone cell's own levels were never touched while it was occupied.
+      const changes = this.changes;
+      const span = 4 * WIDTH * WIDTH;
+      while (changes.length > start) {
+        const old = changes.pop() as number;
+        const key = changes.pop() as number;
+        const player = key >= span ? WHITE : BLACK;
+        const offset = key - (player === WHITE ? span : 0);
+        this.levels[player][offset] = old;
+        this.summarize(offset >> 2, player);
+      }
+    }
     this.turn = stone;
   }
 
@@ -325,10 +350,12 @@ export class PatternBoard {
     const white = packed & 7;
     const offset = index * 4 + direction;
     if (this.levels[BLACK][offset] !== black) {
+      if (this.recording) this.changes.push(offset, this.levels[BLACK][offset]);
       this.levels[BLACK][offset] = black;
       this.summarize(index, BLACK);
     }
     if (this.levels[WHITE][offset] !== white) {
+      if (this.recording) this.changes.push(4 * WIDTH * WIDTH + offset, this.levels[WHITE][offset]);
       this.levels[WHITE][offset] = white;
       this.summarize(index, WHITE);
     }

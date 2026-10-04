@@ -4,6 +4,7 @@
 import { guidedMcts } from './mcts';
 import { Network, type ModelManifest } from './network';
 import { PatternBoard } from './patterns';
+import { VcfCache } from './tactics';
 
 export type BotRequest = {
   id: number;
@@ -20,6 +21,8 @@ export type BotResponse =
   | { id: number; error: string };
 
 let loading: { url: string; network: Promise<Network> } | null = null;
+// VCF results are exact facts about positions, so one cache serves every game.
+const vcfCache = new VcfCache();
 
 function loadNetwork(url: string) {
   if (loading?.url !== url) {
@@ -52,6 +55,7 @@ self.onmessage = async (event: MessageEvent<BotRequest>) => {
     const result = guidedMcts(board, network, {
       timeLimitMs: request.timeLimitMs,
       maxSimulations: request.maxSimulations,
+      vcfCache,
     });
     const action = result.actions[Math.floor(Math.random() * result.actions.length)];
     const response: BotResponse = {

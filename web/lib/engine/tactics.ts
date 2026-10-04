@@ -2,7 +2,7 @@
 // src/connectfive/pattern_search.py: exact tactics that guided MCTS uses
 // before asking the network anything.
 
-import { BLACK, FORCE_FLAG, FOUR_FLAG, PatternBoard, WHITE, WIN_FLAG } from './patterns';
+import { BLACK, EMPTY, FORCE_FLAG, FOUR_FLAG, LINE_CELLS, PatternBoard, WHITE, WIN_FLAG } from './patterns';
 
 export const QUIET = 0;
 export const WIN = 1;
@@ -13,11 +13,36 @@ export const DEFEND = 5;
 
 export type Generated = { kind: number; moves: number[] };
 
+/**
+ * VCF results shared between searches (e.g. all moves of one game). Entries are
+ * exact facts about a position, so sharing changes cost, never answers.
+ */
+export class VcfCache {
+  readonly failures = new Map<number, number>();
+  // wins[depth] maps a position hash to the first winning move at that depth.
+  readonly wins: Map<number, number>[] = [];
+  constructor(readonly limit = 1_000_000) {}
+
+  trim() {
+    let size = this.failures.size;
+    for (const map of this.wins) if (map) size += map.size;
+    if (size > this.limit) {
+      this.failures.clear();
+      this.wins.length = 0;
+    }
+  }
+}
+
 export class Tactics {
   vcfNodes = 0;
-  private readonly vcfFailures = new Map<number, number>();
+  private readonly vcfFailures: Map<number, number>;
+  private readonly vcfWins: Map<number, number>[];
 
-  constructor(private readonly board: PatternBoard) {}
+  constructor(private readonly board: PatternBoard, cache: VcfCache = new VcfCache()) {
+    cache.trim();
+    this.vcfFailures = cache.failures;
+    this.vcfWins = cache.wins;
+  }
 
   /** Classify the position for the side to move and list sensible moves. */
   generate(): Generated {
@@ -82,13 +107,22 @@ export class Tactics {
     if (depth <= 0) return null;
     const failed = this.vcfFailures.get(board.hash);
     if (failed !== undefined && failed >= depth) return null;
+    const known = this.vcfWins[depth]?.get(board.hash);
+    if (known !== undefined) return known;
     if (blocks.length >= 2) return null;
     if (blocks.length) fours = fours.filter((index) => index === blocks[0]);
     fours.sort((a, b) => myOrder[b] - myOrder[a] || a - b);
     for (const move of fours) {
       this.vcfNodes += 1;
       board.play(move);
-      const replies = board.winningCells(me);
+      // There were no winning cells before this four and levels change only on
+      // its own lines, so only those can hold the forced replies.
+      const replies: number[] = [];
+      for (const line of LINE_CELLS[move]) {
+        for (const cell of line) {
+          if (board.cells[cell] === EMPTY && mine[cell] & WIN_FLAG && !replies.includes(cell)) replies.push(cell);
+        }
+      }
       let proved = replies.length >= 2;
       if (replies.length === 1) {
         board.play(replies[0]);
@@ -96,7 +130,10 @@ export class Tactics {
         board.undo();
       }
       board.undo();
-      if (proved) return move;
+      if (proved) {
+        (this.vcfWins[depth] ??= new Map()).set(board.hash, move);
+        return move;
+      }
     }
     this.vcfFailures.set(board.hash, depth);
     return null;
