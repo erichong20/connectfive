@@ -85,6 +85,8 @@ def main() -> None:
     parser.add_argument("--games", type=int, default=20)
     parser.add_argument("--seed", type=int, default=15000)
     parser.add_argument("--opening-plies", type=int, default=4)
+    parser.add_argument("--openings", type=Path,
+                        help="JSON with an 'openings' list of {seed, moves}; overrides --games/--seed")
     parser.add_argument("--time-limit", type=float, default=1.0, help="our seconds per move")
     parser.add_argument("--simulations", type=int, help="fixed simulations instead of time")
     parser.add_argument("--engine-timeout", type=float, default=30.0)
@@ -92,6 +94,12 @@ def main() -> None:
     args = parser.parse_args()
     if args.games % 2:
         parser.error("--games must be even (each opening is played with both colours)")
+    if args.openings:
+        suite = json.loads(args.openings.read_text())["openings"]
+        openings = [(item["seed"], tuple(item["moves"])) for item in suite]
+    else:
+        openings = [(args.seed + k, generate_opening(args.seed + k, args.opening_plies))
+                    for k in range(args.games // 2)]
 
     info = dict(item.split("=", 1) for item in args.info)
     info.setdefault("rule", 1)  # Gomocup rule 1: exactly five on 15x15
@@ -102,8 +110,8 @@ def main() -> None:
     engine.start()
     games = []
     try:
-        for game_index in range(args.games):
-            seed = args.seed + game_index // 2
+        for game_index in range(2 * len(openings)):
+            seed, opening = openings[game_index // 2]
             ours_black = game_index % 2 == 0
             if game_index:
                 try:
@@ -111,13 +119,12 @@ def main() -> None:
                 except EngineError:
                     engine.close()
                     engine.start()
-            record = play_game(evaluator, cache, engine, generate_opening(seed, args.opening_plies),
-                               ours_black, args)
+            record = play_game(evaluator, cache, engine, opening, ours_black, args)
             record.update(seed=seed, ours_black=ours_black)
             games.append(record)
             ours = 0 if ours_black else 1
             result = "draw" if record["winner"] is None else ("win" if record["winner"] == ours else "loss")
-            print(f"game {game_index + 1}/{args.games} seed {seed} ours {'B' if ours_black else 'W'}: "
+            print(f"game {game_index + 1}/{2 * len(openings)} seed {seed} ours {'B' if ours_black else 'W'}: "
                   f"{result} ({record['reason']}, {len(record['moves'])} plies)", flush=True)
     finally:
         engine.close()
@@ -130,6 +137,7 @@ def main() -> None:
     summary = {
         "checkpoint": str(args.checkpoint), "engine": str(args.engine), "info": info,
         "time_limit": args.time_limit, "simulations": args.simulations, "seed": args.seed,
+        "openings": str(args.openings) if args.openings else None,
         "games": len(games), "wins": wins, "losses": losses, "draws": draws,
         "score": score, "score_95_ci": [low, high],
         "wins_as_black": sum(g["winner"] == 0 and g["ours_black"] for g in games),

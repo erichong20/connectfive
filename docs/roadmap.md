@@ -69,7 +69,10 @@ we learned. Details may change when experiments provide better evidence.
 - [x] Parallel network workers in the browser: az-r7 reaches 600
       simulations in ~1 s with 4 workers; batched az-r7 vs az-r2 at 600
       simulations 63.2% (56-70%); the site uses az-r7 on 4+ cores
-- [ ] External anchor: Rapfi matches with balanced openings
+- [x] External anchor: az-r7 (1 s/move) is about even with Rapfi limited to
+      100-150 nodes/move and roughly 750 Elo below 1-second Rapfi on 41
+      balanced openings; very roughly mid-table on the Gomocup Standard list
+      (`experiments/2026-10-04-rapfi-anchor/`)
 
 No purchased compute is planned. The current work is CPU-friendly.
 

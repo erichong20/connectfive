@@ -1,0 +1,29 @@
+{
+ "checkpoint": "runs/az-r7/model",
+ "engine": "runs/engines/rapfi/build/pbrain-rapfi",
+ "info": {
+  "MAX_NODE": "100",
+  "THREAD_NUM": "1",
+  "TIMEOUT_TURN": "1000",
+  "TIMEOUT_MATCH": "10000000",
+  "rule": 1
+ },
+ "time_limit": 1.0,
+ "simulations": null,
+ "seed": 15000,
+ "openings": "experiments/2026-10-04-rapfi-anchor/openings.json",
+ "games": 82,
+ "wins": 45,
+ "losses": 37,
+ "draws": 0,
+ "score": 0.5487804878048781,
+ "score_95_ci": [
+  0.44130776131828087,
+  0.651887299785124
+ ],
+ "wins_as_black": 24,
+ "wins_as_white": 21,
+ "external_failures": 0,
+ "mean_our_ms": 756.7762828538918,
+ "mean_their_ms": 1.3455731801871882
+}
