@@ -29,6 +29,10 @@ def main() -> None:
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--time-limit", type=float, default=0.2)
     parser.add_argument("--parallel", type=int, default=5)
+    parser.add_argument("--simulations", type=int,
+                        help="fixed simulations per move for the candidate (overrides time)")
+    parser.add_argument("--opponent-simulations", type=int,
+                        help="fixed simulations per move for the champion")
     parser.add_argument("--min-score", type=float)
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
@@ -46,7 +50,10 @@ def main() -> None:
                     [sys.executable, "scripts/evaluate_guided.py", str(args.candidate),
                      "--opponent-checkpoint", str(args.champion), "--games", str(args.block),
                      "--seed", str(seed), "--time-limit", str(args.time_limit),
-                     "--json", str(path)],
+                     "--json", str(path)]
+                    + (["--simulations", str(args.simulations)] if args.simulations else [])
+                    + (["--opponent-simulations", str(args.opponent_simulations)]
+                       if args.opponent_simulations else []),
                     stdout=log, stderr=subprocess.STDOUT, check=True,
                 )
         return json.loads(path.read_text())
@@ -65,7 +72,8 @@ def main() -> None:
     result = {
         "candidate": str(args.candidate), "champion": str(args.champion),
         "seeds": [seeds[0], seeds[-1] + args.block // 2 - 1],
-        "time_limit": args.time_limit, "rule": rule, "passed": passed,
+        "time_limit": args.time_limit, "simulations": args.simulations,
+        "opponent_simulations": args.opponent_simulations, "rule": rule, "passed": passed,
         **summary.as_dict(),
     }
     (args.out / "gate.json").write_text(json.dumps(result, indent=2) + "\n")

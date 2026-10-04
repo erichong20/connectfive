@@ -61,7 +61,10 @@ we learned. Details may change when experiments provide better evidence.
       r8 53.8% vs az-r7, not promoted
       (`experiments/2026-10-04-alphazero-lite-r6-r8/`)
 - [ ] Continue rounds from the az-r7 champion
-- [ ] Benchmark az-r7 in the browser before replacing az-r2 there
+- [x] Browser benchmark: az-r7 reaches ~300 simulations in 1.5 s vs az-r2's
+      600 cap; at those budgets 48.2% (41-55%) vs az-r2, so the site keeps
+      az-r2 (`experiments/2026-10-04-browser-az-r7/`)
+- [ ] Port the Python search speed-ups to the TypeScript engine
 
 No purchased compute is planned. The current work is CPU-friendly.
 

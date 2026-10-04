@@ -26,6 +26,10 @@ def main() -> None:
         help="fixed MCTS simulations per move for the focal agent (overrides time)",
     )
     parser.add_argument(
+        "--opponent-simulations", type=int,
+        help="fixed MCTS simulations per move for a --opponent-checkpoint agent",
+    )
+    parser.add_argument(
         "--opponent-checkpoint", type=Path,
         help="play guided search with this network instead of --opponent",
     )
@@ -40,7 +44,7 @@ def main() -> None:
         args.opponent = f"guided-{args.mode}:{args.opponent_checkpoint.parent.name}"
         opponent = GuidedAgent(
             NetworkEvaluator.from_checkpoint(args.opponent_checkpoint), args.mode,
-            args.time_limit, name=args.opponent,
+            args.time_limit, name=args.opponent, simulations=args.opponent_simulations,
         )
     elif args.opponent == "pattern":
         # Same wall-clock budget for the classical baseline.
