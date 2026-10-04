@@ -56,7 +56,12 @@ we learned. Details may change when experiments provide better evidence.
 - [x] Self-play speed: exact board/VCF optimisations (2.1-4.1x, identical
       games) and playout-cap randomisation (8.7x games/hour vs round 5)
       (`experiments/2026-10-03-selfplay-speed/`)
-- [ ] Continue rounds from the az-r2 champion
+- [x] Rounds 6-8 (fast self-play, overnight loop): **az-r7 promoted**, 62.7%
+      vs az-r2 and 60.0% (53-66.5%) on an independent 200-game confirmation;
+      r8 53.8% vs az-r7, not promoted
+      (`experiments/2026-10-04-alphazero-lite-r6-r8/`)
+- [ ] Continue rounds from the az-r7 champion
+- [ ] Benchmark az-r7 in the browser before replacing az-r2 there
 
 No purchased compute is planned. The current work is CPU-friendly.
 

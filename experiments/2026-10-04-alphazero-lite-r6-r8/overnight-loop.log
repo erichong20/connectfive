@@ -1,0 +1,13 @@
+[23:31:31] waiting for round 6 (pid 6573)
+[01:37:55] round 6 done; champion runs/az-r2/model
+[01:37:55] round 7: self-play from runs/az-r6/model
+[03:15:24] round 7: {'black_wins': 1683, 'white_wins': 1006, 'draws': 111, 'dead_draws': 0, 'capped_draws': 111, 'mean_length': 43.89607142857143, 'seconds': 3964.248609417118, 'workers': 9, 'resumed_games': 0, 'simulations': 18317700}
+[03:27:59] round 7: validation: {'policy_loss': 1.2123026847839355, 'policy_accuracy': 0.6147421931735657, 'value_mse': 0.6703885197639465, 'value_mae': 0.6564586758613586, 'value_mae_constant_baseline': 0.84654051065444
+[03:32:44] round 7 gate vs runs/az-r2/model: runs/az-r7/model vs runs/az-r2/model: 124-73-3, 62.7% (95% CI 55.9%-69.2%); 95% interval excludes 50%: PASS
+[03:32:44] PROMOTED: runs/az-r7/model
+[03:32:44] round 8: self-play from runs/az-r7/model
+[05:15:16] round 8: {'black_wins': 1675, 'white_wins': 979, 'draws': 146, 'dead_draws': 0, 'capped_draws': 146, 'mean_length': 45.26535714285714, 'seconds': 4266.317742167041, 'workers': 9, 'resumed_games': 0, 'simulations': 19219200}
+[05:27:50] round 8: validation: {'policy_loss': 1.2969582080841064, 'policy_accuracy': 0.5960461285008237, 'value_mse': 0.6213912963867188, 'value_mae': 0.6350327730178833, 'value_mae_constant_baseline': 0.80528354644775
+[05:32:34] round 8 gate vs runs/az-r7/model: runs/az-r8/model vs runs/az-r7/model: 106-91-3, 53.8% (95% CI 46.8%-60.5%); 95% interval excludes 50%: FAIL
+[05:32:34] not starting round 9: only 147 min left
+[05:32:34] DONE; champion runs/az-r7/model

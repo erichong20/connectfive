@@ -80,7 +80,8 @@ labels, and record which agent and configuration produced each sample.
 Supervised v2 (`pattern` teacher, 1,200 games) beats Tactical 75-20-5 over 100
 games with held-out value MAE 0.61; see
 `experiments/2026-09-30-pattern-teacher-v2/`. Guided MCTS with the
-AlphaZero-lite round-2 network (`runs/az-r2/model`) is the current champion;
-see `experiments/2026-09-30-alphazero-lite-r1/`. Continue self-play rounds
+64-channel AlphaZero-lite round-7 network (`runs/az-r7/model`) is the current
+champion; see `experiments/2026-10-04-alphazero-lite-r6-r8/`. The browser
+still ships az-r2 until az-r7 is benchmarked there. Continue self-play rounds
 with a promotion gate against the current champion. Keep the work local and CPU-friendly; do
 not start a long training run or purchase compute.

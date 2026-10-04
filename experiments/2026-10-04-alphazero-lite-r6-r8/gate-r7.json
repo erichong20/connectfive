@@ -1,0 +1,43 @@
+{
+  "candidate": "runs/az-r7/model",
+  "champion": "runs/az-r2/model",
+  "seeds": [
+    12100,
+    12199
+  ],
+  "time_limit": 0.2,
+  "rule": "95% interval excludes 50%",
+  "passed": true,
+  "agent": "guided-mcts",
+  "opponent": "guided-mcts:az-r2",
+  "games": 200,
+  "wins": 124,
+  "losses": 73,
+  "draws": 3,
+  "agent_illegal_moves": 0,
+  "opponent_illegal_moves": 0,
+  "total_moves": 8077,
+  "elapsed_seconds": 1078.73745991732,
+  "agent_black_wins": 87,
+  "agent_black_losses": 12,
+  "agent_black_draws": 1,
+  "agent_black_games": 100,
+  "agent_white_wins": 37,
+  "agent_white_losses": 61,
+  "agent_white_draws": 2,
+  "agent_white_games": 100,
+  "agent_move_count": 3651,
+  "agent_total_move_ms": 530955.816611182,
+  "agent_total_search_nodes": 1692592,
+  "agent_total_completed_depth": 0,
+  "win_rate": 0.62,
+  "score_rate": 0.6275,
+  "score_rate_95_ci": [
+    0.5586837387852758,
+    0.6915107029885211
+  ],
+  "average_game_length": 40.385,
+  "average_agent_move_ms": 145.42750386501834,
+  "average_search_nodes": 463.59682278827717,
+  "average_completed_depth": 0.0
+}
