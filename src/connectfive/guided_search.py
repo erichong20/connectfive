@@ -112,6 +112,26 @@ class GuidedAlphaBeta(PatternSearch):
         return super().run()
 
 
+class VcfCache:
+    """VCF results shared by successive searches (e.g. all moves of a game).
+
+    Entries are exact facts about a position, so sharing them never changes a
+    search's answer, only its cost. Cleared when it grows past ``limit``.
+    """
+
+    def __init__(self, limit: int = 2_000_000):
+        self.failures: dict[int, int] = {}
+        self.wins: dict[tuple[int, int], int] = {}
+        self.limit = limit
+
+    def attach(self, search: PatternSearch) -> None:
+        if len(self.failures) + len(self.wins) > self.limit:
+            self.failures.clear()
+            self.wins.clear()
+        search.vcf_failures = self.failures
+        search.vcf_wins = self.wins
+
+
 @dataclass
 class _Node:
     prior: float
@@ -132,7 +152,8 @@ class GuidedMCTS:
                  time_limit: float = 0.2, max_simulations: int = 100_000,
                  c_puct: float = 1.5, top_k: int = 16, leaf_vcf_depth: int = 4,
                  root_noise: float = 0.0, noise_alpha: float = 0.3,
-                 rng: np.random.Generator | None = None):
+                 rng: np.random.Generator | None = None,
+                 vcf_cache: VcfCache | None = None):
         self.board = board
         # Self-play exploration: mix Dirichlet noise into the root priors.
         self.root_noise = root_noise
@@ -144,6 +165,8 @@ class GuidedMCTS:
         self.c_puct = c_puct
         self.top_k = top_k
         self.tactics = PatternSearch(board, node_budget=10**9, leaf_vcf_depth=0)
+        if vcf_cache is not None:
+            vcf_cache.attach(self.tactics)
         self.leaf_vcf_depth = leaf_vcf_depth
         self.simulations = 0
 
@@ -262,16 +285,19 @@ class GuidedAgent:
     name: str = "guided"
     # When set, MCTS uses a fixed simulation count instead of the time limit.
     simulations: int | None = None
+    vcf_cache: VcfCache = field(default_factory=VcfCache, repr=False)
     last_search: PatternSearchResult | None = field(default=None, repr=False)
 
     def select_action(self, state, key) -> int:
         board = PatternBoard.from_array(np.asarray(state._board), int(state.current_player))
         if self.mode == "mcts":
             if self.simulations is None:
-                search = GuidedMCTS(board, self.evaluator, time_limit=self.time_limit)
+                search = GuidedMCTS(board, self.evaluator, time_limit=self.time_limit,
+                                    vcf_cache=self.vcf_cache)
             else:
                 search = GuidedMCTS(board, self.evaluator, time_limit=1e9,
-                                    max_simulations=self.simulations)
+                                    max_simulations=self.simulations,
+                                    vcf_cache=self.vcf_cache)
             result = search.run()
         else:
             result = GuidedAlphaBeta(

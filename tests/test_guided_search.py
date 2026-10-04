@@ -111,3 +111,24 @@ def test_selfplay_log_resumes_without_replaying_finished_games(tmp_path):
     assert again[:2] == first
     assert sorted(load_game_log(log)) == [1, 2, 3]
     assert len(log.read_text().splitlines()) == 4  # only seed 3 was played again
+
+
+def test_playout_cap_records_only_full_searches(tmp_path):
+    from connectfive.dataset import verify_record
+    from connectfive.network import save_checkpoint
+    from connectfive.selfplay import SelfPlayConfig, generate_selfplay_games
+    from connectfive.teacher import game_record
+
+    config = NetworkConfig(residual_blocks=1, channels=8, value_hidden=16, input_planes=4)
+    params = PolicyValueNetwork(config).init(
+        jax.random.PRNGKey(0), jnp.zeros((1, BOARD_SIZE, BOARD_SIZE, 4))
+    )
+    save_checkpoint(tmp_path / "model", params, config, step=0)
+    base = dict(checkpoint=str(tmp_path / "model"), simulations=6, draw_ply_cap=30)
+    full = generate_selfplay_games([5], SelfPlayConfig(**base))[0]
+    capped = generate_selfplay_games(
+        [5], SelfPlayConfig(**base, full_search_fraction=0.3, fast_simulations=2)
+    )[0]
+    assert len(full.positions) == len(full.moves) - len(full.opening_moves)
+    assert 0 < len(capped.positions) < len(capped.moves) - len(capped.opening_moves)
+    verify_record(game_record(capped, SelfPlayConfig(**base)))

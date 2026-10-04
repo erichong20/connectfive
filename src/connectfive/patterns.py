@@ -201,6 +201,9 @@ class PatternBoard:
         self.summary = {
             player: dict.fromkeys(ACTION_TO_INDEX, _BLANK) for player in (BLACK, WHITE)
         }
+        # Per move: the (levels, summary, cell, old level, old summary) entries it
+        # changed, so ``undo`` restores them instead of recomputing patterns.
+        self._history: list[list[tuple]] = []
 
     @classmethod
     def from_array(cls, board: np.ndarray, player: int) -> PatternBoard:
@@ -217,6 +220,8 @@ class PatternBoard:
             for neighbour in NEIGHBOURS[index]:
                 result.near[neighbour] += 1
         result.turn = BLACK if int(player) == 0 else WHITE
+        # Stones loaded from an array have no recorded changes; undo recomputes.
+        result._history = [None] * len(result.moves)
         for index in ACTION_TO_INDEX:
             if result.cells[index] == EMPTY:
                 if result.near[index]:
@@ -253,7 +258,7 @@ class PatternBoard:
             near[neighbour] += 1
             if cells[neighbour] == EMPTY:
                 candidates.add(neighbour)
-        self._refresh_lines(index)
+        self._history.append(self._refresh_lines(index))
         self.turn = WHITE if stone == BLACK else BLACK
 
     def undo(self) -> None:
@@ -269,16 +274,42 @@ class PatternBoard:
                 candidates.discard(neighbour)
         if near[index]:
             candidates.add(index)
-        self._refresh_lines(index)
+        # The undone cell's own levels were never touched while it was occupied,
+        # so they are already correct for the restored position.
+        changes = self._history.pop()
+        if changes is None:
+            self._refresh_lines(index)
+        else:
+            for levels, summary, cell, old_level, old_summary in reversed(changes):
+                levels[cell] = old_level
+                summary[cell] = old_summary
         self.turn = stone
 
-    def _refresh_lines(self, index: int) -> None:
+    def _refresh_lines(self, index: int) -> list[tuple]:
+        """Recompute the empty cells on ``index``'s four lines; return the changes."""
+
         cells = self.cells
-        refresh = self._refresh
+        black_levels, white_levels = self.levels[BLACK], self.levels[WHITE]
+        black_summary, white_summary = self.summary[BLACK], self.summary[WHITE]
+        changes = []
         for direction, line in enumerate(LINE_CELLS[index]):
             for cell in line:
-                if cells[cell] == EMPTY:
-                    refresh(cell, direction)
+                if cells[cell] != EMPTY:
+                    continue
+                black, white = line_levels(WINDOW_GETTERS[cell][direction](cells))
+                old = black_levels[cell]
+                if old[direction] != black:
+                    changes.append((black_levels, black_summary, cell, old, black_summary[cell]))
+                    new = old[:direction] + (black,) + old[direction + 1:]
+                    black_levels[cell] = new
+                    black_summary[cell] = cell_summary(new)
+                old = white_levels[cell]
+                if old[direction] != white:
+                    changes.append((white_levels, white_summary, cell, old, white_summary[cell]))
+                    new = old[:direction] + (white,) + old[direction + 1:]
+                    white_levels[cell] = new
+                    white_summary[cell] = cell_summary(new)
+        return changes
 
     def _refresh(self, index: int, direction: int) -> None:
         black, white = line_levels(WINDOW_GETTERS[index][direction](self.cells))

@@ -53,6 +53,9 @@ we learned. Details may change when experiments provide better evidence.
 - [x] Runner fixes: resumable self-play log, replay hold-out
       (`--hold-out-extra`), 200-game parallel promotion gate
       (`scripts/promotion_gate.py`)
+- [x] Self-play speed: exact board/VCF optimisations (2.1-4.1x, identical
+      games) and playout-cap randomisation (8.7x games/hour vs round 5)
+      (`experiments/2026-10-03-selfplay-speed/`)
 - [ ] Continue rounds from the az-r2 champion
 
 No purchased compute is planned. The current work is CPU-friendly.

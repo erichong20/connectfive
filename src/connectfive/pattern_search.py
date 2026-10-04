@@ -26,7 +26,9 @@ import numpy as np
 from connectfive.patterns import (
     ACTION_TO_INDEX,
     BLACK,
+    EMPTY,
     INDEX_TO_ACTION,
+    LINE_CELLS,
     WHITE,
     PatternBoard,
 )
@@ -123,7 +125,11 @@ class PatternSearch:
         self.tt_hits = 0
         self.cutoffs = 0
         self.table: dict[int, tuple[int, int, int, int]] = {}
+        # VCF results by position. Both are exact (a search of the same position
+        # to the same depth always returns the same answer), so they may be
+        # shared between searches through ``VcfCache``.
         self.vcf_failures: dict[int, int] = {}
+        self.vcf_wins: dict[tuple[int, int], int] = {}
         self.deadline = None
 
     # ----- move generation -------------------------------------------------
@@ -194,6 +200,9 @@ class PatternSearch:
         failed = self.vcf_failures.get(board.hash)
         if failed is not None and failed >= depth:
             return None
+        known = self.vcf_wins.get((board.hash, depth))
+        if known is not None:
+            return known
         blocks = [i for i in board.candidates if theirs[i][3]]
         if len(blocks) >= 2:
             return None
@@ -205,7 +214,12 @@ class PatternSearch:
             self._tick(vcf=True)
             board.play(move)
             try:
-                replies = board.winning_cells(me)
+                # There were no winning cells before this four, and levels only
+                # change on the four's own lines, so only those can hold replies.
+                replies = [
+                    cell for cell in {c for line in LINE_CELLS[move] for c in line}
+                    if board.cells[cell] == EMPTY and mine[cell][3]
+                ]
                 proved = len(replies) >= 2
                 if len(replies) == 1:
                     board.play(replies[0])
@@ -216,6 +230,7 @@ class PatternSearch:
             finally:
                 board.undo()
             if proved:
+                self.vcf_wins[(board.hash, depth)] = move
                 return move
         self.vcf_failures[board.hash] = depth
         return None

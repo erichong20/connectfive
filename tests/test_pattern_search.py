@@ -175,3 +175,42 @@ def test_root_scores_are_exact_and_contain_the_choice():
     assert max(scores.values()) == result.score
     target = result.policy_target()
     assert abs(sum(target.values()) - 1) < 1e-9
+
+
+def test_pattern_board_undo_restores_exactly_what_a_rebuild_computes():
+    import random
+
+    import numpy as np
+
+    from connectfive.patterns import ACTION_TO_INDEX, PatternBoard
+
+    rng = random.Random(4)
+    for trial in range(20):
+        board = PatternBoard()
+        if trial % 2:  # also undo past stones loaded from an array
+            start = np.full((15, 15), -1, dtype=np.int8)
+            for k, action in enumerate(rng.sample(range(225), 6)):
+                start.reshape(-1)[action] = k % 2
+            board = PatternBoard.from_array(start, 0)
+        snapshots = []
+        for _ in range(rng.randint(5, 40)):
+            empty = [i for i in ACTION_TO_INDEX if board.cells[i] == 0]
+            snapshots.append((board.hash, {p: dict(s) for p, s in board.summary.items()},
+                              {p: dict(l) for p, l in board.levels.items()},
+                              set(board.candidates)))
+            board.play(rng.choice(empty))
+            rebuilt = PatternBoard.from_array(board.to_array(), board.player)
+            # Occupied cells keep stale levels by design; only empty ones are read.
+            for cell in (i for i in ACTION_TO_INDEX if board.cells[i] == 0):
+                for player in (1, 2):
+                    assert board.levels[player][cell] == rebuilt.levels[player][cell]
+                    assert board.summary[player][cell] == rebuilt.summary[player][cell]
+        while snapshots:
+            board.undo()
+            hash_, summary, levels, candidates = snapshots.pop()
+            assert (board.hash, board.summary, board.levels, board.candidates) == (
+                hash_, summary, levels, candidates)
+        if trial % 2:
+            for _ in range(6):
+                board.undo()
+            assert board.levels == PatternBoard().levels

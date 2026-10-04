@@ -72,6 +72,11 @@ class SelfPlayConfig:
     # or unconditionally at ``draw_ply_cap`` (unsound; measure misjudged games).
     adjudicate_draws_from: int | None = None
     draw_ply_cap: int | None = None
+    # Playout-cap randomisation (KataGo): only this fraction of moves gets the
+    # full search and becomes a training position; the rest use a cheap search
+    # without root noise and are not recorded. 1.0 keeps every move full.
+    full_search_fraction: float = 1.0
+    fast_simulations: int = 100
 
     @property
     def name(self) -> str:
@@ -79,6 +84,7 @@ class SelfPlayConfig:
 
 
 _EVALUATOR = None
+_VCF_CACHE = None
 
 
 def _init_worker(checkpoint: str) -> None:
@@ -118,7 +124,11 @@ def choose_opening(seed: int, config: SelfPlayConfig, evaluator) -> tuple[int, .
 
 
 def play_selfplay_game(seed: int, config: SelfPlayConfig) -> TeacherGame:
-    from connectfive.guided_search import GuidedMCTS
+    from connectfive.guided_search import GuidedMCTS, VcfCache
+
+    global _VCF_CACHE
+    if _VCF_CACHE is None:
+        _VCF_CACHE = VcfCache()
     from connectfive.patterns import ACTION_TO_INDEX, PatternBoard
 
     if _EVALUATOR is None:
@@ -139,10 +149,13 @@ def play_selfplay_game(seed: int, config: SelfPlayConfig) -> TeacherGame:
             adjudicated = "dead"
             break
         ply = len(board.moves)
+        # Draw only when enabled, so full-search-only games stay reproducible.
+        full = config.full_search_fraction >= 1.0 or rng.random() < config.full_search_fraction
         search = GuidedMCTS(
-            board, _EVALUATOR, time_limit=1e9, max_simulations=config.simulations,
-            c_puct=config.c_puct, root_noise=config.root_noise,
-            noise_alpha=config.noise_alpha, rng=rng,
+            board, _EVALUATOR, time_limit=1e9,
+            max_simulations=config.simulations if full else config.fast_simulations,
+            c_puct=config.c_puct, root_noise=config.root_noise if full else 0.0,
+            noise_alpha=config.noise_alpha, rng=rng, vcf_cache=_VCF_CACHE,
         )
         result = search.run()
         simulations += search.simulations
@@ -154,12 +167,13 @@ def play_selfplay_game(seed: int, config: SelfPlayConfig) -> TeacherGame:
         else:
             # Forced or proven positions skip simulation: the target is the forced move.
             policy = {best: 1.0}
-        positions.append(LabelledPosition(
-            ply=ply, player=board.player, best_action=best,
-            policy=tuple(sorted(policy.items())),
-            search_value=max(-1.0, min(1.0, result.score / 1000)),
-            search_score=result.score, reason=result.stats.reason,
-        ))
+        if full:
+            positions.append(LabelledPosition(
+                ply=ply, player=board.player, best_action=best,
+                policy=tuple(sorted(policy.items())),
+                search_value=max(-1.0, min(1.0, result.score / 1000)),
+                search_score=result.score, reason=result.stats.reason,
+            ))
         if ply - len(opening) < config.sample_plies and len(policy) > 1:
             actions, weights = zip(*sorted(policy.items()))
             move = int(rng.choice(actions, p=np.asarray(weights) / sum(weights)))

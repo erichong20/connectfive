@@ -27,6 +27,9 @@ def main() -> None:
                         help="stop games as draws once no five is possible, from this ply")
     parser.add_argument("--draw-ply-cap", type=int, default=None,
                         help="stop unfinished games as draws at this ply")
+    parser.add_argument("--full-search-fraction", type=float, default=1.0,
+                        help="playout-cap randomisation: share of moves searched fully and recorded")
+    parser.add_argument("--fast-simulations", type=int, default=100)
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
 
@@ -34,7 +37,9 @@ def main() -> None:
                             balance_threshold=args.balance_threshold,
                             balance_attempts=args.balance_attempts,
                             adjudicate_draws_from=args.adjudicate_draws_from,
-                            draw_ply_cap=args.draw_ply_cap)
+                            draw_ply_cap=args.draw_ply_cap,
+                            full_search_fraction=args.full_search_fraction,
+                            fast_simulations=args.fast_simulations)
     seeds = list(range(args.seed, args.seed + args.games))
     started = time.perf_counter()
     # Finished games are logged as they complete; rerunning resumes from the log.
