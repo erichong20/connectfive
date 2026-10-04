@@ -124,7 +124,7 @@ def test_playout_cap_records_only_full_searches(tmp_path):
         jax.random.PRNGKey(0), jnp.zeros((1, BOARD_SIZE, BOARD_SIZE, 4))
     )
     save_checkpoint(tmp_path / "model", params, config, step=0)
-    base = dict(checkpoint=str(tmp_path / "model"), simulations=6, draw_ply_cap=30)
+    base = {"checkpoint": str(tmp_path / "model"), "simulations": 6, "draw_ply_cap": 30}
     full = generate_selfplay_games([5], SelfPlayConfig(**base))[0]
     capped = generate_selfplay_games(
         [5], SelfPlayConfig(**base, full_search_fraction=0.3, fast_simulations=2)

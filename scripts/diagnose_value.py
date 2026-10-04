@@ -34,7 +34,7 @@ def predict(path: Path, dataset, indices, chunk: int = 2_048) -> np.ndarray:
 def summarize(values: np.ndarray, outcome: np.ndarray) -> dict[str, float]:
     decisive = outcome != 0
     return {
-        "n": int(len(values)),
+        "n": len(values),
         "mae": float(np.abs(values - outcome).mean()),
         "sign_acc": float((np.sign(values[decisive]) == outcome[decisive]).mean())
         if decisive.any() else float("nan"),
@@ -66,8 +66,8 @@ def main() -> None:
         sources[str(path)] = predict(path, dataset, held_out)
 
     report = {
-        "dataset": str(args.dataset), "held_out_positions": int(len(held_out)),
-        "held_out_games": int(len(np.unique(game_ids))),
+        "dataset": str(args.dataset), "held_out_positions": len(held_out),
+        "held_out_games": len(np.unique(game_ids)),
         "constant_mae": float(np.abs(outcome - outcome.mean()).mean()),
         "colour_baseline": {},
         "sources": {},

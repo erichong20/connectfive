@@ -65,7 +65,6 @@ def test_match_summary_reports_color_timing_and_confidence():
 
 
 def test_combine_summaries_adds_blocks_and_rejects_mixed_agents():
-    import dataclasses
 
     from connectfive.match import combine_summaries, evaluate_agents
 
