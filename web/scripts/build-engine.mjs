@@ -3,9 +3,9 @@
 import { build } from 'esbuild';
 
 const root = new URL('..', import.meta.url).pathname;
-await build({
-  entryPoints: [`${root}lib/engine/bot.worker.ts`],
-  outfile: `${root}public/engine/bot-worker.js`,
+for (const [entry, out] of [['bot.worker.ts', 'bot-worker.js'], ['net.worker.ts', 'net-worker.js']]) await build({
+  entryPoints: [`${root}lib/engine/${entry}`],
+  outfile: `${root}public/engine/${out}`,
   bundle: true,
   format: 'esm',
   target: 'es2020',
@@ -13,4 +13,4 @@ await build({
   legalComments: 'none',
   logLevel: 'warning',
 });
-console.log('wrote public/engine/bot-worker.js');
+console.log('wrote public/engine/bot-worker.js and net-worker.js');

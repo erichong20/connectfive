@@ -109,6 +109,24 @@ for (const { name, fixtures, network } of MODELS) {
     assert.ok(agree >= fixtures.cases.length - 2, `${agree}/${fixtures.cases.length} agree`);
   });
 
+  test(`${name}: batched MCTS (4 leaves, virtual loss) matches Python`, async () => {
+    const net = network();
+    let agree = 0;
+    for (const testCase of fixtures.cases) {
+      const result = await engine.guidedMctsBatched(
+        boardFor(testCase.moves),
+        (board) => net.encodeRequest(board),
+        async (leaves) => leaves.map(({ features }) => {
+          const { logits, value } = net.evaluateFeatures(features);
+          return { logits: Float32Array.from(logits), value };
+        }),
+        { maxSimulations: fixtures.simulations, timeLimitMs: 1e9, batchSize: 4 },
+      );
+      if (result.actions[0] === testCase.mcts_batch4_actions[0]) agree += 1;
+    }
+    assert.ok(agree >= fixtures.cases.length - 2, `${agree}/${fixtures.cases.length} agree`);
+  });
+
   test(`${name}: MCTS speed (informational)`, () => {
     const net = network();
     const board = boardFor(fixtures.cases[0].moves);

@@ -82,6 +82,7 @@ games with held-out value MAE 0.61; see
 `experiments/2026-09-30-pattern-teacher-v2/`. Guided MCTS with the
 64-channel AlphaZero-lite round-7 network (`runs/az-r7/model`) is the current
 champion; see `experiments/2026-10-04-alphazero-lite-r6-r8/`. The browser
-still ships az-r2 until az-r7 is benchmarked there. Continue self-play rounds
+uses az-r7 with parallel network workers on devices with 4+ cores and az-r2
+otherwise; see `experiments/2026-10-04-browser-az-r7/`. Continue self-play rounds
 with a promotion gate against the current champion. Keep the work local and CPU-friendly; do
 not start a long training run or purchase compute.

@@ -132,3 +132,21 @@ def test_playout_cap_records_only_full_searches(tmp_path):
     assert len(full.positions) == len(full.moves) - len(full.opening_moves)
     assert 0 < len(capped.positions) < len(capped.moves) - len(capped.opening_moves)
     verify_record(game_record(capped, SelfPlayConfig(**base)))
+
+
+def test_batched_search_is_legal_counts_exactly_and_clears_virtual_loss(evaluator):
+    from connectfive.guided_search import GuidedMCTS
+    from connectfive.match import generate_opening
+    from connectfive.patterns import ACTION_TO_INDEX, PatternBoard
+
+    board = PatternBoard()
+    for action in generate_opening(11, 6):
+        board.play(ACTION_TO_INDEX[action])
+    before = (board.hash, list(board.moves))
+    search = GuidedMCTS(board, evaluator, time_limit=1e9, max_simulations=50, batch_size=4)
+    result = search.run()
+    assert (board.hash, list(board.moves)) == before
+    assert search.simulations == 50
+    # Root children's visits add up to completed simulations: no virtual loss left.
+    assert sum(visits for _, visits in result.root_scores) == 50
+    assert result.actions and all(board.cells[ACTION_TO_INDEX[a]] == 0 for a in result.actions)

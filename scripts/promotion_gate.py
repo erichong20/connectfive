@@ -31,6 +31,8 @@ def main() -> None:
     parser.add_argument("--parallel", type=int, default=5)
     parser.add_argument("--simulations", type=int,
                         help="fixed simulations per move for the candidate (overrides time)")
+    parser.add_argument("--batch-size", type=int, default=1,
+                        help="candidate's leaves per batch under virtual loss")
     parser.add_argument("--opponent-simulations", type=int,
                         help="fixed simulations per move for the champion")
     parser.add_argument("--min-score", type=float)
@@ -52,6 +54,7 @@ def main() -> None:
                      "--seed", str(seed), "--time-limit", str(args.time_limit),
                      "--json", str(path)]
                     + (["--simulations", str(args.simulations)] if args.simulations else [])
+                    + (["--batch-size", str(args.batch_size)] if args.batch_size > 1 else [])
                     + (["--opponent-simulations", str(args.opponent_simulations)]
                        if args.opponent_simulations else []),
                     stdout=log, stderr=subprocess.STDOUT, check=True,
@@ -73,7 +76,8 @@ def main() -> None:
         "candidate": str(args.candidate), "champion": str(args.champion),
         "seeds": [seeds[0], seeds[-1] + args.block // 2 - 1],
         "time_limit": args.time_limit, "simulations": args.simulations,
-        "opponent_simulations": args.opponent_simulations, "rule": rule, "passed": passed,
+        "opponent_simulations": args.opponent_simulations,
+        "batch_size": args.batch_size, "rule": rule, "passed": passed,
         **summary.as_dict(),
     }
     (args.out / "gate.json").write_text(json.dumps(result, indent=2) + "\n")

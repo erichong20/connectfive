@@ -46,9 +46,23 @@ const BOT_HINTS: Record<BotKind, string> = {
   random: 'Random plays any open intersection.',
 };
 // The neural bot searches for up to this long (or this many simulations) per move.
-const NEURAL_MODEL_URL = '/models/az-r2/';
-// Built from lib/engine/bot.worker.ts by scripts/build-engine.mjs.
+// With at least 4 cores it runs the stronger 64-channel az-r7 network on a pool
+// of network workers (batched search); otherwise the smaller az-r2 serially.
+// See experiments/2026-10-04-browser-az-r7/.
+const NEURAL_MODEL_URL = '/models/az-r7/';
+const NEURAL_FALLBACK_MODEL_URL = '/models/az-r2/';
+const NEURAL_MIN_CORES = 4;
+const NEURAL_MAX_WORKERS = 4;
+// Built from lib/engine/*.worker.ts by scripts/build-engine.mjs.
 const NEURAL_WORKER_URL = '/engine/bot-worker.js';
+const NEURAL_NET_WORKER_URL = '/engine/net-worker.js';
+
+function neuralSetup() {
+  const cores = typeof navigator === 'undefined' ? 1 : navigator.hardwareConcurrency || 1;
+  return cores >= NEURAL_MIN_CORES
+    ? { modelUrl: NEURAL_MODEL_URL, workers: Math.min(NEURAL_MAX_WORKERS, cores - 1) }
+    : { modelUrl: NEURAL_FALLBACK_MODEL_URL, workers: 1 };
+}
 const NEURAL_TIME_LIMIT_MS = 1_500;
 const NEURAL_MAX_SIMULATIONS = 600;
 
@@ -372,7 +386,9 @@ export default function Home() {
       id,
       board: board.map((stone) => (stone === null ? -1 : stone)),
       player: bot,
-      modelUrl: NEURAL_MODEL_URL,
+      ...neuralSetup(),
+      netWorkerUrl: NEURAL_NET_WORKER_URL,
+      fallbackModelUrl: NEURAL_FALLBACK_MODEL_URL,
       timeLimitMs: NEURAL_TIME_LIMIT_MS,
       maxSimulations: NEURAL_MAX_SIMULATIONS,
     };

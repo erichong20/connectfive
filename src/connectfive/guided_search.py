@@ -139,6 +139,8 @@ class _Node:
     value_sum: float = 0.0
     children: dict[int, _Node] | None = None
     terminal: float | None = None
+    # Batched search: picked for network evaluation, not yet expanded.
+    pending: bool = False
 
     @property
     def q(self) -> float:
@@ -153,7 +155,8 @@ class GuidedMCTS:
                  c_puct: float = 1.5, top_k: int = 16, leaf_vcf_depth: int = 4,
                  root_noise: float = 0.0, noise_alpha: float = 0.3,
                  rng: np.random.Generator | None = None,
-                 vcf_cache: VcfCache | None = None):
+                 vcf_cache: VcfCache | None = None,
+                 batch_size: int = 1, virtual_loss: float = 1.0):
         self.board = board
         # Self-play exploration: mix Dirichlet noise into the root priors.
         self.root_noise = root_noise
@@ -168,24 +171,37 @@ class GuidedMCTS:
         if vcf_cache is not None:
             vcf_cache.attach(self.tactics)
         self.leaf_vcf_depth = leaf_vcf_depth
+        # batch_size > 1 picks several leaves under virtual loss before expanding
+        # any of them, as the browser does when it evaluates leaves in parallel.
+        self.batch_size = batch_size
+        self.virtual_loss = virtual_loss
         self.simulations = 0
 
     def _expand(self, node: _Node) -> float:
         """Create children and return the leaf value for the side to move."""
 
+        resolved = self._expand_tactics(node)
+        if resolved is not None:
+            return resolved[0]
+        return self._attach(node, *self._network(node))
+
+    def _expand_tactics(self, node: _Node) -> tuple[float] | None:
+        """Resolve full boards and exact tactics; None if the network is needed."""
+
         board = self.board
         if board.is_full():
             node.terminal = 0.0
-            return 0.0
+            return (0.0,)
         kind, moves = self.tactics.generate(10**6)
+        self._generated = (kind, moves)
         if kind in (WIN, FORCE_WIN):
             node.terminal = 1.0
             node.children = {moves[0]: _Node(prior=1.0)}
-            return 1.0
+            return (1.0,)
         if kind == LOSS:
             node.terminal = -1.0
             node.children = {moves[0]: _Node(prior=1.0)}
-            return -1.0
+            return (-1.0,)
         if kind == QUIET and self.leaf_vcf_depth:
             try:
                 win = self.tactics.vcf(self.leaf_vcf_depth)
@@ -194,8 +210,15 @@ class GuidedMCTS:
             if win is not None:
                 node.terminal = 1.0
                 node.children = {win: _Node(prior=1.0)}
-                return 1.0
-        logits, value = self.evaluator(board)
+                return (1.0,)
+        return None
+
+    def _network(self, node: _Node):
+        kind, moves = self._generated
+        logits, value = self.evaluator(self.board)
+        return kind, moves, logits, value
+
+    def _attach(self, node: _Node, kind, moves, logits, value) -> float:
         if kind == QUIET:
             moves = sorted(moves, key=lambda i: -logits[INDEX_TO_ACTION[i]])[: self.top_k]
         scores = np.array([logits[INDEX_TO_ACTION[i]] for i in moves])
@@ -237,6 +260,65 @@ class GuidedMCTS:
             visited.value_sum += value
             value = -value
 
+    def _simulate_batch(self, root: _Node, size: int) -> int:
+        """Pick up to ``size`` leaves under virtual loss, then expand and back up.
+
+        Each picked path gets a temporary extra visit, and every non-root node
+        on it a temporary value of +virtual_loss for its own side to move, i.e. a
+        loss for the parent choosing it, so later picks spread out. Tactical and
+        terminal leaves are backed up at once. Picking stops at a leaf that is
+        already pending (a collision). Returns the number of completed
+        simulations.
+        """
+
+        board = self.board
+        pending, done = [], 0
+        for _ in range(size):
+            path, node, played = [root], root, 0
+            while node.children is not None and node.terminal is None and not node.pending:
+                move, node = self._select(node)
+                board.play(move)
+                played += 1
+                path.append(node)
+            if node.pending:
+                for _ in range(played):
+                    board.undo()
+                break
+            if node.terminal is not None:
+                value, evaluated = node.terminal, None
+            else:
+                resolved = self._expand_tactics(node)
+                evaluated = None if resolved is not None else self._network(node)
+                value = resolved[0] if resolved is not None else None
+            for _ in range(played):
+                board.undo()
+            if evaluated is None:
+                self._backup(path, value)
+                done += 1
+                continue
+            node.pending = True
+            for depth, visited in enumerate(path):
+                visited.visits += 1
+                if depth:
+                    visited.value_sum += self.virtual_loss
+            pending.append((path, evaluated))
+        for path, evaluated in pending:
+            for depth, visited in enumerate(path):
+                visited.visits -= 1
+                if depth:
+                    visited.value_sum -= self.virtual_loss
+            path[-1].pending = False
+            self._backup(path, self._attach(path[-1], *evaluated))
+            done += 1
+        return done
+
+    @staticmethod
+    def _backup(path: list[_Node], value: float) -> None:
+        for visited in reversed(path):
+            visited.visits += 1
+            visited.value_sum += value
+            value = -value
+
     def run(self) -> PatternSearchResult:
         started = time.perf_counter()
         deadline = started + self.time_limit
@@ -256,8 +338,12 @@ class GuidedMCTS:
             reason = "forced"
         else:
             while self.simulations < self.max_simulations and time.perf_counter() < deadline:
-                self._simulate(root)
-                self.simulations += 1
+                if self.batch_size > 1:
+                    size = min(self.batch_size, self.max_simulations - self.simulations)
+                    self.simulations += self._simulate_batch(root, size)
+                else:
+                    self._simulate(root)
+                    self.simulations += 1
         most = max(child.visits for child in root.children.values())
         actions = tuple(sorted(
             INDEX_TO_ACTION[m] for m, c in root.children.items() if c.visits == most
@@ -286,6 +372,8 @@ class GuidedAgent:
     # When set, MCTS uses a fixed simulation count instead of the time limit.
     simulations: int | None = None
     vcf_cache: VcfCache = field(default_factory=VcfCache, repr=False)
+    # Leaves picked per batch under virtual loss (the browser's parallel search).
+    batch_size: int = 1
     last_search: PatternSearchResult | None = field(default=None, repr=False)
 
     def select_action(self, state, key) -> int:
@@ -293,11 +381,11 @@ class GuidedAgent:
         if self.mode == "mcts":
             if self.simulations is None:
                 search = GuidedMCTS(board, self.evaluator, time_limit=self.time_limit,
-                                    vcf_cache=self.vcf_cache)
+                                    vcf_cache=self.vcf_cache, batch_size=self.batch_size)
             else:
                 search = GuidedMCTS(board, self.evaluator, time_limit=1e9,
                                     max_simulations=self.simulations,
-                                    vcf_cache=self.vcf_cache)
+                                    vcf_cache=self.vcf_cache, batch_size=self.batch_size)
             result = search.run()
         else:
             result = GuidedAlphaBeta(

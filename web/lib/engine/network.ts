@@ -85,7 +85,13 @@ export class Network {
     return result;
   }
 
-  /** Forward pass on explicit features (15 x 15 x planes), used by tests. */
+  /** A copy of the network input for `board`, keyed by its hash (for worker pools). */
+  encodeRequest(board: PatternBoard) {
+    this.encode(board);
+    return { hash: board.hash, features: this.input.slice() };
+  }
+
+  /** Forward pass on explicit features (15 x 15 x planes), used by tests and worker pools. */
   evaluateFeatures(features: Float32Array) {
     this.input.set(features);
     return this.forward();

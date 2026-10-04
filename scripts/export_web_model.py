@@ -82,6 +82,8 @@ def export_fixtures(checkpoint: Path, games_json: Path, out: Path, positions: in
         logits, value = evaluator(board)
         search = GuidedMCTS(board, evaluator, time_limit=1e9, max_simulations=simulations)
         result = search.run()
+        batched = GuidedMCTS(board, evaluator, time_limit=1e9, max_simulations=simulations,
+                             batch_size=4).run()
         summaries = {
             str(action): [list(board.levels[player][index]) for player in (1, 2)]
             for action, index in enumerate(ACTION_TO_INDEX)
@@ -101,6 +103,8 @@ def export_fixtures(checkpoint: Path, games_json: Path, out: Path, positions: in
             "mcts_actions": list(result.actions),
             "mcts_visits": [list(pair) for pair in result.root_scores],
             "mcts_reason": result.stats.reason,
+            "mcts_batch4_actions": list(batched.actions),
+            "mcts_batch4_visits": [list(pair) for pair in batched.root_scores],
         })
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({

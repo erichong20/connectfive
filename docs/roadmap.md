@@ -64,7 +64,12 @@ we learned. Details may change when experiments provide better evidence.
 - [x] Browser benchmark: az-r7 reaches ~300 simulations in 1.5 s vs az-r2's
       600 cap; at those budgets 48.2% (41-55%) vs az-r2, so the site keeps
       az-r2 (`experiments/2026-10-04-browser-az-r7/`)
-- [ ] Port the Python search speed-ups to the TypeScript engine
+- [x] Port the Python search speed-ups to the TypeScript engine (5-10%;
+      the browser is network-bound)
+- [x] Parallel network workers in the browser: az-r7 reaches 600
+      simulations in ~1 s with 4 workers; batched az-r7 vs az-r2 at 600
+      simulations 63.2% (56-70%); the site uses az-r7 on 4+ cores
+- [ ] External anchor: Rapfi matches with balanced openings
 
 No purchased compute is planned. The current work is CPU-friendly.
 

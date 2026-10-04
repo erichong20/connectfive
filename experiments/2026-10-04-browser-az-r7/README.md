@@ -78,3 +78,60 @@ engine the network is 95% (az-r2, 2.35 ms per evaluation) to 98% (az-r7,
 6.30 ms) of search time, unlike Python where VCF dominated. The remaining
 levers are network speed (a faster WASM GEMM or WebGPU), parallel search
 across several Web Workers, or a longer think time.
+
+## Follow-up: parallel network workers (batched search)
+
+Because the network dominates browser search time, the search now evaluates
+several leaves at once on a pool of network workers.
+
+- Algorithm (`guidedMctsBatched` in `web/lib/engine/mcts.ts`, and
+  `GuidedMCTS(batch_size=...)` in `src/connectfive/guided_search.py`): pick up
+  to B leaves before expanding any of them. Each picked path gets a temporary
+  extra visit and every non-root node on it a temporary +1 value for its own
+  side (a loss for the parent choosing it), so later picks spread out.
+  Tactical and terminal leaves are backed up at once; picking stops at a leaf
+  that is already pending. `batch_size=1` is the old search, unchanged
+  (byte-identical on the reference positions).
+- Browser plumbing: `web/lib/engine/net.worker.ts` (one network per worker),
+  `pool.ts` (splits each batch across workers, caches by position hash,
+  fails fast on worker errors or a 10 s timeout), `bot.worker.ts` (runs the
+  batched search; on any pool failure switches permanently to a serial search
+  with the fallback model).
+- Parity: Python batched search (B=4) results added to both fixture files;
+  the TypeScript batched search picks the same top move on at least 28/30
+  positions per model (14 engine tests pass).
+
+In-browser speed (Chromium, Apple M1 Pro, 10 cores; median simulations in
+1.5 s over 8 quiet positions, `/engine/` bench page served statically):
+
+| Model | Network workers | Median | Min |
+| --- | --- | --- | --- |
+| az-r2 | 1 | 827 | 65 |
+| az-r7 | 1 | 353 | 270 |
+| az-r7 | 2 | 528 | 488 |
+| az-r7 | 3 | 782 | 732 |
+| az-r7 | 4 | 952 | 856 |
+| az-r7 | 6 | 1,399 | 1,182 |
+
+Strength at the site's settings (Python, fixed simulations, 200 paired games,
+seeds 16000-16099; `gate-batch4-600v600.json`):
+
+| Match | W-L-D | Score | 95% CI |
+| --- | --- | --- | --- |
+| az-r7, batched B=4, 600 sims vs az-r2, 600 sims | 124-71-5 | 63.2% | 56.4-69.6% |
+
+Batching costs little: this matches az-r7's unbatched results against az-r2
+(62.7% and 60.0%).
+
+**Site change** (`web/app/page.tsx`): with at least 4 logical cores the
+neural bot uses az-r7 with min(4, cores - 1) network workers; otherwise, or
+if workers fail, az-r2 serially as before. Verified in a local production
+build (`npm run build` + Wrangler on port 8788): 600 simulations in about
+1.0 s on az-r7, and page moves answered in about 1.6 s. On the Vite dev
+server, nested module workers fail to start in this browser; the bot then
+falls back to az-r2 within about 1 s, which is how the fallback was tested.
+
+Limitations: speeds are from one fast laptop. Phones report 6-8 cores but
+mix fast and slow cores, so they will reach fewer simulations; the time limit
+(1.5 s) bounds the wait either way. Strength in the browser is inferred from
+Python games at matching simulation counts, not from games played in browsers.
