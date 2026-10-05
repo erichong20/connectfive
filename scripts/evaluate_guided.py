@@ -25,6 +25,8 @@ def main() -> None:
         "--simulations", type=int,
         help="fixed MCTS simulations per move for the focal agent (overrides time)",
     )
+    parser.add_argument("--native-batch", type=int, default=0,
+                        help="both agents search with the native C core, this many leaves per batch")
     parser.add_argument("--batch-size", type=int, default=1,
                         help="leaves per batch under virtual loss for the focal agent")
     parser.add_argument(
@@ -40,13 +42,14 @@ def main() -> None:
     evaluator = NetworkEvaluator.from_checkpoint(args.checkpoint)
     agent = GuidedAgent(
         evaluator, args.mode, args.time_limit, name=f"guided-{args.mode}",
-        simulations=args.simulations, batch_size=args.batch_size,
+        simulations=args.simulations, batch_size=args.batch_size, native_batch=args.native_batch,
     )
     if args.opponent_checkpoint:
         args.opponent = f"guided-{args.mode}:{args.opponent_checkpoint.parent.name}"
         opponent = GuidedAgent(
             NetworkEvaluator.from_checkpoint(args.opponent_checkpoint), args.mode,
             args.time_limit, name=args.opponent, simulations=args.opponent_simulations,
+            native_batch=args.native_batch,
         )
     elif args.opponent == "pattern":
         # Same wall-clock budget for the classical baseline.

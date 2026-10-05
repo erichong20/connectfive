@@ -30,6 +30,8 @@ def main() -> None:
     parser.add_argument("--full-search-fraction", type=float, default=1.0,
                         help="playout-cap randomisation: share of moves searched fully and recorded")
     parser.add_argument("--fast-simulations", type=int, default=100)
+    parser.add_argument("--native-batch", type=int, default=0,
+                        help="use the native C search, evaluating this many leaves per network call")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
 
@@ -39,7 +41,8 @@ def main() -> None:
                             adjudicate_draws_from=args.adjudicate_draws_from,
                             draw_ply_cap=args.draw_ply_cap,
                             full_search_fraction=args.full_search_fraction,
-                            fast_simulations=args.fast_simulations)
+                            fast_simulations=args.fast_simulations,
+                            native_batch=args.native_batch)
     seeds = list(range(args.seed, args.seed + args.games))
     started = time.perf_counter()
     # Finished games are logged as they complete; rerunning resumes from the log.

@@ -77,6 +77,9 @@ class SelfPlayConfig:
     # without root noise and are not recorded. 1.0 keeps every move full.
     full_search_fraction: float = 1.0
     fast_simulations: int = 100
+    # > 0: search with the native C core, evaluating this many leaves per
+    # network call (batched virtual-loss semantics); 0: the Python search.
+    native_batch: int = 0
 
     @property
     def name(self) -> str:
@@ -85,6 +88,7 @@ class SelfPlayConfig:
 
 _EVALUATOR = None
 _VCF_CACHE = None
+_NATIVE = None
 
 
 def _init_worker(checkpoint: str) -> None:
@@ -151,12 +155,24 @@ def play_selfplay_game(seed: int, config: SelfPlayConfig) -> TeacherGame:
         ply = len(board.moves)
         # Draw only when enabled, so full-search-only games stay reproducible.
         full = config.full_search_fraction >= 1.0 or rng.random() < config.full_search_fraction
-        search = GuidedMCTS(
-            board, _EVALUATOR, time_limit=1e9,
-            max_simulations=config.simulations if full else config.fast_simulations,
-            c_puct=config.c_puct, root_noise=config.root_noise if full else 0.0,
-            noise_alpha=config.noise_alpha, rng=rng, vcf_cache=_VCF_CACHE,
-        )
+        budget = config.simulations if full else config.fast_simulations
+        noise = config.root_noise if full else 0.0
+        if config.native_batch:
+            from connectfive.native import BatchEvaluator, NativeCore, NativeMCTS
+
+            global _NATIVE
+            if _NATIVE is None:
+                _NATIVE = (BatchEvaluator.from_evaluator(_EVALUATOR, config.native_batch),
+                           NativeCore(c_puct=config.c_puct, planes=_EVALUATOR.config.input_planes))
+            search = NativeMCTS(board, _NATIVE[0], time_limit=1e9, max_simulations=budget,
+                                core=_NATIVE[1], root_noise=noise, noise_alpha=config.noise_alpha,
+                                rng=rng)
+        else:
+            search = GuidedMCTS(
+                board, _EVALUATOR, time_limit=1e9, max_simulations=budget,
+                c_puct=config.c_puct, root_noise=noise,
+                noise_alpha=config.noise_alpha, rng=rng, vcf_cache=_VCF_CACHE,
+            )
         result = search.run()
         simulations += search.simulations
         visits = dict(result.root_scores)

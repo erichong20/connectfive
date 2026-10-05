@@ -150,3 +150,23 @@ def test_batched_search_is_legal_counts_exactly_and_clears_virtual_loss(evaluato
     # Root children's visits add up to completed simulations: no virtual loss left.
     assert sum(visits for _, visits in result.root_scores) == 50
     assert result.actions and all(board.cells[ACTION_TO_INDEX[a]] == 0 for a in result.actions)
+
+
+def test_native_core_matches_python_batched_search(evaluator):
+    from connectfive.guided_search import GuidedMCTS
+    from connectfive.match import generate_opening
+    from connectfive.native import BatchEvaluator, NativeCore, NativeMCTS
+    from connectfive.patterns import ACTION_TO_INDEX, PatternBoard
+
+    core = NativeCore(planes=evaluator.config.input_planes)
+    for batch in (1, 4):
+        batched = BatchEvaluator.from_evaluator(evaluator, batch)
+        for seed in range(4):
+            board = PatternBoard()
+            for action in generate_opening(300 + seed, 6):
+                board.play(ACTION_TO_INDEX[action])
+            python = GuidedMCTS(board, evaluator, time_limit=1e9, max_simulations=60,
+                                batch_size=batch).run()
+            native = NativeMCTS(board, batched, time_limit=1e9, max_simulations=60, core=core).run()
+            assert native.actions[:1] == python.actions[:1]
+            assert dict(native.root_scores) == dict(python.root_scores)

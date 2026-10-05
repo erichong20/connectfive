@@ -49,6 +49,7 @@ class NetworkEvaluator:
 
     def __init__(self, params: Any, config: NetworkConfig):
         self.config = config
+        self.params = params
         model = PolicyValueNetwork(config)
         self._apply = jax.jit(lambda x: model.apply(params, x))
         self.cache: dict[int, tuple[np.ndarray, float]] = {}
@@ -374,11 +375,25 @@ class GuidedAgent:
     vcf_cache: VcfCache = field(default_factory=VcfCache, repr=False)
     # Leaves picked per batch under virtual loss (the browser's parallel search).
     batch_size: int = 1
+    # > 0: run the search in the native C core with this many leaves per batch.
+    native_batch: int = 0
+    _native: Any = field(default=None, repr=False)
     last_search: PatternSearchResult | None = field(default=None, repr=False)
 
     def select_action(self, state, key) -> int:
         board = PatternBoard.from_array(np.asarray(state._board), int(state.current_player))
-        if self.mode == "mcts":
+        if self.mode == "mcts" and self.native_batch:
+            from connectfive.native import BatchEvaluator, NativeCore, NativeMCTS
+
+            if self._native is None:
+                self._native = (BatchEvaluator.from_evaluator(self.evaluator, self.native_batch),
+                                NativeCore(planes=self.evaluator.config.input_planes))
+            result = NativeMCTS(
+                board, self._native[0], core=self._native[1],
+                time_limit=self.time_limit if self.simulations is None else 1e9,
+                max_simulations=self.simulations or 100_000,
+            ).run()
+        elif self.mode == "mcts":
             if self.simulations is None:
                 search = GuidedMCTS(board, self.evaluator, time_limit=self.time_limit,
                                     vcf_cache=self.vcf_cache, batch_size=self.batch_size)
