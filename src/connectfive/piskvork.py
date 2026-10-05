@@ -132,14 +132,28 @@ class PiskvorkEngine:
             if action is not None:
                 return action, time.monotonic() - started
 
-    def last_eval(self) -> int | None:
-        """The last ``Eval N`` reported in a MESSAGE line (Rapfi/Yixin style), if any."""
+    def last_eval(self, mate: int = 20_000) -> int | None:
+        """The last ``Eval`` reported (Rapfi/Yixin MESSAGE lines) for the latest move.
+
+        Only lines after the most recent ``DONE`` count, so a value is never taken
+        from an earlier search. ``+M3`` / ``-M5`` (forced win/loss in N moves) map
+        to ``±(mate - N)``.
+        """
 
         for line in reversed(self.log):
+            if line == "> DONE":
+                return None
             if line.startswith("< MESSAGE") and "Eval" in line:
-                parts = line.split("Eval", 1)[1].split("|")[0].strip().split()
-                if parts and parts[0].lstrip("-").isdigit():
-                    return int(parts[0])
+                token = line.split("Eval", 1)[1].split("|")[0].strip().split()
+                if not token:
+                    continue
+                text = token[0]
+                sign = -1 if text.startswith("-") else 1
+                body = text.lstrip("+-")
+                if body.startswith("M") and body[1:].isdigit():
+                    return sign * (mate - int(body[1:]))
+                if body.isdigit():
+                    return sign * int(body)
         return None
 
     def close(self) -> None:

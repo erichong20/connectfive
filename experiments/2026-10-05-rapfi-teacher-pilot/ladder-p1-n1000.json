@@ -1,0 +1,29 @@
+{
+ "checkpoint": "runs/rapfi-teacher/model-p1",
+ "engine": "runs/engines/rapfi/build/pbrain-rapfi",
+ "info": {
+  "MAX_NODE": "1000",
+  "THREAD_NUM": "1",
+  "TIMEOUT_TURN": "1000",
+  "TIMEOUT_MATCH": "10000000",
+  "rule": 1
+ },
+ "time_limit": 1.0,
+ "simulations": null,
+ "seed": 15000,
+ "openings": "experiments/2026-10-04-rapfi-anchor/openings.json",
+ "games": 82,
+ "wins": 12,
+ "losses": 70,
+ "draws": 0,
+ "score": 0.14634146341463414,
+ "score_95_ci": [
+  0.08574162210230579,
+  0.23859418489800904
+ ],
+ "wins_as_black": 6,
+ "wins_as_white": 6,
+ "external_failures": 0,
+ "mean_our_ms": 770.6009082829711,
+ "mean_their_ms": 3.116573430597782
+}

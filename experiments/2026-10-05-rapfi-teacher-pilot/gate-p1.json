@@ -1,0 +1,19 @@
+{
+ "candidate": "runs/rapfi-teacher/model-p1",
+ "champion": "runs/az-r7/model",
+ "seeds": [
+  17000,
+  17099
+ ],
+ "time_limit": 0.2,
+ "wins": 79,
+ "losses": 117,
+ "draws": 4,
+ "score_rate": 0.405,
+ "score_rate_95_ci": [
+  0.3393777128250677,
+  0.47420289918661307
+ ],
+ "agent_black_wins": 63,
+ "agent_white_wins": 16
+}

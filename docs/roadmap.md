@@ -73,6 +73,9 @@ we learned. Details may change when experiments provide better evidence.
       100-150 nodes/move and roughly 750 Elo below 1-second Rapfi on 41
       balanced openings; very roughly mid-table on the Gomocup Standard list
       (`experiments/2026-10-04-rapfi-anchor/`)
+- [x] Rapfi teacher pilot (5,000 Rapfi games, fine-tune az-r7): 40.5% vs
+      az-r7, Rapfi ladder unchanged; not promoted
+      (`experiments/2026-10-05-rapfi-teacher-pilot/`)
 
 No purchased compute is planned. The current work is CPU-friendly.
 

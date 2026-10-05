@@ -28,7 +28,14 @@ def test_engine_plays_from_a_board_and_restarts():
 
 def test_last_eval_reads_the_latest_message():
     engine = PiskvorkEngine(["true"])
-    engine.log += ["< MESSAGE Depth 3 | Eval 849 | Time 1ms", "< MESSAGE Speed 244K | Depth 5-6 | Eval -71 | Node 489",
-                   "< 6,7"]
+    engine.log += ["> DONE", "< MESSAGE Depth 3 | Eval 849 | Time 1ms",
+                   "< MESSAGE Speed 244K | Depth 5-6 | Eval -71 | Node 489", "< 6,7"]
     assert engine.last_eval() == -71
     assert PiskvorkEngine(["true"]).last_eval() is None
+    # Forced wins/losses, and never a value from before the latest DONE.
+    engine.log += ["> DONE", "< MESSAGE Depth 26-2 | Eval +M3 | Time 1ms", "< 6,8"]
+    assert engine.last_eval() == 19_997
+    engine.log += ["> DONE", "< MESSAGE Eval -M5 | Node 9", "< 1,1"]
+    assert engine.last_eval() == -19_995
+    engine.log += ["> DONE", "< MESSAGE Depth 1 | Time 0ms", "< 2,2"]
+    assert engine.last_eval() is None

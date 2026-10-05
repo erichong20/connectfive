@@ -67,3 +67,13 @@ uncertain (roughly -480 to -1000).
 - For a better Gomocup-scale estimate, play mid-list engines directly (most
   are Windows executables and would need Wine) or calibrate limited Rapfi
   against full Rapfi.
+
+## Correction: evaluation parsing
+
+Rapfi reports forced wins as `Eval +M3` / `-M5`. The first version of
+`PiskvorkEngine.last_eval` skipped those and returned the last plain number
+anywhere in the log, possibly from an earlier search. It now reads only the
+lines after the latest `DONE` and maps `±M n` to `±(20000 - n)`
+(`tests/test_piskvork.py`). All 41 openings were re-checked with the fixed
+parser at the same settings: 40 stay within 150; seed 21088 moved from 150 to
+197. The suite and the results above are kept unchanged.
