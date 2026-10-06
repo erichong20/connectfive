@@ -18,7 +18,7 @@ faster native core, should consolidate the gain.
 - Fine-tune az-r7 3,000 x 256 steps, lr 0.0002, on Rapfi-labelled r8 (main,
   10% held out) plus Rapfi-labelled r7 and self-play r8, r7, r6 replay with
   `--hold-out-extra`, soft policy, blend value, per-game value weighting.
-- Gate vs az-r7 (seeds 17100-17099+99): 118-78-4, 60.0% (53.1-66.5%), pass;
+- Gate vs az-r7 (seeds 17100-17199): 118-78-4, 60.0% (53.1-66.5%), pass;
   confirmation (seeds 18000-18099): 105-90-5, 53.8% (46.8-60.5%), fail. Not
   promoted. Rapfi ladder (41 balanced openings x 2, 1 s/move): 81.1% / 65.9%
   / 52.4% / 22.0% against 30 / 100 / 300 / 1,000 nodes (az-r7: 79.3 / 54.9 /
