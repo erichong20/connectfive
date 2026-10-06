@@ -3,6 +3,7 @@
 import argparse
 import os
 import platform
+import random
 import time
 from pathlib import Path
 
@@ -32,6 +33,8 @@ def main() -> None:
     parser.add_argument("--fast-simulations", type=int, default=100)
     parser.add_argument("--native-batch", type=int, default=0,
                         help="use the native C search, evaluating this many leaves per network call")
+    parser.add_argument("--verify-sample", type=int, default=200,
+                        help="games replayed through the JAX environment (-1: all)")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
 
@@ -52,7 +55,11 @@ def main() -> None:
     games = generate_selfplay_games(seeds, config, workers=args.workers, log=log)
     seconds = time.perf_counter() - started
     records = tuple(game_record(game, config) for game in games)
-    for record in records:
+    # Replaying through the JAX environment costs ~0.6 s per game; the search
+    # already referees every move with the pattern board, so check a sample.
+    sample = records if args.verify_sample < 0 else random.Random(0).sample(
+        records, min(args.verify_sample, len(records)))
+    for record in sample:
         verify_record(record)
     dataset = SupervisedDataset(**teacher_games_to_arrays(games, config))
     winners = [game.winner for game in games]
@@ -64,6 +71,7 @@ def main() -> None:
         "mean_length": float(np.mean([len(game.moves) for game in games])),
         # Wall time of this invocation only; ``resumed_games`` came from the log.
         "seconds": seconds, "workers": args.workers, "resumed_games": resumed,
+        "verified_games": len(sample),
         "simulations": sum(game.elapsed_nodes for game in games),
     }
     save_dataset(args.out, dataset, records, metadata={
