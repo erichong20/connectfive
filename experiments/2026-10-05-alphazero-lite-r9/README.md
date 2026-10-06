@@ -56,9 +56,28 @@ Black / White: 89 / 26 and 85 / 31.
 - Gates use the Python search for both sides, so the native core only
   changed how fast the round ran, not how the gate was played.
 
+## Rapfi ladder
+
+41 balanced openings x 2 colours, our side 1 s/move, Rapfi 1 thread
+(`ladder-n*.json`; same protocol as `experiments/2026-10-04-rapfi-anchor/`):
+
+| Rapfi | az-r7 | model-d1 | az-r9 | az-r9 95% CI |
+| --- | --- | --- | --- | --- |
+| 30 nodes | 79.3% | 81.1% | 87.2% | 78-93% |
+| 100 nodes | 54.9% | 65.9% | 64.6% | 54-74% |
+| 300 nodes | 37.8% | 52.4% | 52.4% | 42-63% |
+| 1,000 nodes | 11.6% | 22.0% | 24.4% | 16-35% |
+
+az-r9 is about even with Rapfi at 300 nodes per move, where az-r7 was even
+at roughly 100-150: on the order of +100-150 Elo on this external scale,
+consistent with the head-to-head gates. Every Rapfi setting moved in our
+favour, but adjacent rows overlap, so the per-row differences are not
+individually significant. On the rough Gomocup mapping of the anchor
+experiment, that moves the estimate from about 1750-2050 to about
+1900-2200.
+
 ## Next decision
 
-- Measure az-r9 on the Rapfi ladder (running).
 - Export az-r9 to the website after its browser parity tests.
 - Continue: Rapfi-label the new round's positions, fine-tune, native
   self-play, gate against az-r9.

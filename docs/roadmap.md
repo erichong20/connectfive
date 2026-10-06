@@ -79,7 +79,8 @@ we learned. Details may change when experiments provide better evidence.
 - [x] Native C search core: exact parity with batched Python search; self-play
       1.7x faster (`experiments/2026-10-05-native-engine/`)
 - [x] Rapfi labels on our own positions (DAgger) + native self-play round 9:
-      **az-r9 promoted**, 58.5% and 59.2% vs az-r7 in two independent gates
+      **az-r9 promoted**, 58.5% and 59.2% vs az-r7 in two independent gates;
+      about even with Rapfi at 300 nodes (az-r7: about 100-150)
       (`experiments/2026-10-05-alphazero-lite-r9/`)
 
 No purchased compute is planned. The current work is CPU-friendly.
