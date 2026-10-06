@@ -20,6 +20,7 @@ const fixtures = readJson('tests/fixtures/engine-parity.json');
 const MODELS = [
   { name: 'az-r2', fixtures },
   { name: 'az-r7', fixtures: readJson('tests/fixtures/engine-parity-az-r7.json') },
+  { name: 'az-r9', fixtures: readJson('tests/fixtures/engine-parity-az-r9.json') },
 ].map((model) => {
   const manifest = readJson(`public/models/${model.name}/model.json`);
   const weights = readFileSync(join(root, `public/models/${model.name}/weights.bin`));

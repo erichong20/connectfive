@@ -60,7 +60,9 @@ we learned. Details may change when experiments provide better evidence.
       vs az-r2 and 60.0% (53-66.5%) on an independent 200-game confirmation;
       r8 53.8% vs az-r7, not promoted
       (`experiments/2026-10-04-alphazero-lite-r6-r8/`)
-- [ ] Continue rounds from the az-r9 champion
+- [x] Website ships az-r9 (parallel workers on 4+ cores, az-r2 fallback)
+- [ ] Optional next: VCT (threat-space) search, further Rapfi-labelled rounds
+      from the az-r9 champion
 - [x] Browser benchmark: az-r7 reaches ~300 simulations in 1.5 s vs az-r2's
       600 cap; at those budgets 48.2% (41-55%) vs az-r2, so the site keeps
       az-r2 (`experiments/2026-10-04-browser-az-r7/`)

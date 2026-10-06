@@ -46,10 +46,10 @@ const BOT_HINTS: Record<BotKind, string> = {
   random: 'Random plays any open intersection.',
 };
 // The neural bot searches for up to this long (or this many simulations) per move.
-// With at least 4 cores it runs the stronger 64-channel az-r7 network on a pool
+// With at least 4 cores it runs the stronger 64-channel az-r9 network on a pool
 // of network workers (batched search); otherwise the smaller az-r2 serially.
-// See experiments/2026-10-04-browser-az-r7/.
-const NEURAL_MODEL_URL = '/models/az-r7/';
+// See experiments/2026-10-04-browser-az-r7/ and 2026-10-05-alphazero-lite-r9/.
+const NEURAL_MODEL_URL = '/models/az-r9/';
 const NEURAL_FALLBACK_MODEL_URL = '/models/az-r2/';
 const NEURAL_MIN_CORES = 4;
 const NEURAL_MAX_WORKERS = 4;

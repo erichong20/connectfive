@@ -135,3 +135,15 @@ Limitations: speeds are from one fast laptop. Phones report 6-8 cores but
 mix fast and slow cores, so they will reach fewer simulations; the time limit
 (1.5 s) bounds the wait either way. Strength in the browser is inferred from
 Python games at matching simulation counts, not from games played in browsers.
+
+## Follow-up: az-r9 on the website (2026-10-05)
+
+az-r9 (champion; `experiments/2026-10-05-alphazero-lite-r9/`) has the same
+architecture as az-r7 (64 channels, 4 blocks), so browser speed is unchanged.
+Exported to `web/public/models/az-r9/` with parity fixtures
+(`web/tests/fixtures/engine-parity-az-r9.json`); all 19 engine tests pass,
+including az-r9 network, serial MCTS and batched MCTS parity with Python.
+`web/app/page.tsx` now uses az-r9 on devices with 4+ cores (az-r2 otherwise,
+unchanged). Checked in a local production build: 600 simulations in about
+1.0 s with 4 network workers, page moves answered in about 1 s. az-r7's
+files stay in `web/public/models/` as a baseline for parity tests.
